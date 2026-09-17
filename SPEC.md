@@ -58,8 +58,8 @@ One file, but with labeled rooms — every build session follows this shape so l
 iOS does not let Shortcuts read push notifications from other apps (Santander's included). What works:
 
 1. **Apple Pay (primary).** Add the Santander card to Wallet and pay with Apple Pay. The Wallet **"Transaction" automation** runs on every payment and hands the shortcut the amount, merchant and card, with no typing. It inserts the movement with no category (→ inbox) and posts a notification "Categoriza: $185.00 · OXXO".
-2. **Santander SMS/email alerts (to check).** If SuperMóvil lets you enable SMS or email alerts per purchase, Shortcuts can trigger on those too ("Message"/"Email" automations) for purchases made with the physical card. To verify in the app's Alertas settings.
-3. **"Gasto" quick add (fallback).** Home-screen widget / Action button / Back Tap: type amount, optional note → inbox. Covers cash and anything the triggers miss.
+2. **Santander SMS/email alerts — not available.** Checked 2026-09-16: SuperMóvil does not offer per-purchase SMS/email alerts, so there is no automation path for physical-card purchases. They are captured with the quick add below.
+3. **"Gasto" quick add (fallback).** Home-screen widget / Action button / Back Tap: type amount, optional note → inbox. Covers cash, physical-card purchases and anything the triggers miss.
 
 **Categorizing.** Two paths, we test which feels better: (a) the automation itself pops a category menu right after the payment; (b) the notification takes you to the app's **Inbox** screen, where pending items are categorized one by one with big buttons. The app's inbox is always there as the catch-all.
 
@@ -127,7 +127,7 @@ Serge Apps/Serge Finance/
 3. **Apple Pay automation + "Gasto" shortcut.** *Milestone: pay with Apple Pay, categorize from the notification.*
 4. **Presupuestos, Cuentas, Metas, Resumen.**
 5. **Candado**: checklist, rule, `estado` view, "¿Puedo gastar?" shortcut.
-6. **Recurrentes**, CSV export, polish; Santander SMS/email automation if available.
+6. **Recurrentes**, CSV export, polish.
 
 ## 9. Open questions
 
@@ -139,6 +139,6 @@ Resolved 2026-09-16:
 - **Lock rule**: implemented as a configurable threshold (see §5 Candado); the value is chosen later with real data.
 - **Presupuestos rollover**: the app auto-copies last month's budgets forward (see §5 Presupuestos).
 
-Still open:
+- **SuperMóvil alerts**: checked 2026-09-16 — no per-purchase SMS/email alerts available. Physical-card purchases are captured with the "Gasto" quick add (§4).
 
-- Does SuperMóvil offer SMS/email purchase alerts? (Serge checks the Alertas settings on the phone; only needed for §8 step 6.)
+No questions remain open.
