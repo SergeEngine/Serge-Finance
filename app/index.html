@@ -353,7 +353,7 @@ const api = {
   },
   listMovimientos(limit = 100) {
     return this._rest('GET',
-      `movimientos?select=*,categorias(nombre,emoji),cuentas(nombre)&categoria_id=not.is.null&order=fecha.desc,creado.desc&limit=${limit}`);
+      `movimientos?select=*,categorias(nombre,icono),cuentas(nombre)&categoria_id=not.is.null&order=fecha.desc,creado.desc&limit=${limit}`);
   },
   addMovimiento(mov)          { return this._rest('POST', 'movimientos', mov); },
   categorizar(id, categoria_id) { return this._rest('PATCH', `movimientos?id=eq.${id}`, { categoria_id }); },
