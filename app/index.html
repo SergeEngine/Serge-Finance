@@ -1,0 +1,557 @@
+<!doctype html>
+<html lang="es-MX">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Serge Finance</title>
+<style>
+/* ============ tokens ============ */
+:root {
+  --bg: #f4f4f6;
+  --card: #ffffff;
+  --ink: #1c1c1e;
+  --ink-2: #6e6e73;
+  --line: #e3e3e8;
+  --accent: #0a7d4f;
+  --accent-ink: #ffffff;
+  --gasto: #c0392b;
+  --ingreso: #0a7d4f;
+  --radius: 14px;
+  --nav-h: 64px;
+  --pad: 16px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #101012;
+    --card: #1c1c1e;
+    --ink: #f2f2f5;
+    --ink-2: #9a9aa0;
+    --line: #2c2c2f;
+    --accent: #2fbf83;
+    --accent-ink: #08110d;
+    --gasto: #ff6b5e;
+    --ingreso: #2fbf83;
+  }
+}
+
+/* ============ base ============ */
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font: 16px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom));
+}
+h1 { font-size: 1.35rem; margin: 0; }
+h2 { font-size: 1.05rem; margin: 0 0 8px; color: var(--ink-2); font-weight: 600; }
+button { font: inherit; cursor: pointer; }
+input, select, textarea { font: inherit; color: var(--ink); }
+.card {
+  background: var(--card);
+  border-radius: var(--radius);
+  padding: var(--pad);
+  margin: 0 var(--pad) 12px;
+  border: 1px solid var(--line);
+}
+.btn {
+  display: block; width: 100%;
+  padding: 14px; border: 0; border-radius: var(--radius);
+  background: var(--accent); color: var(--accent-ink);
+  font-weight: 600; font-size: 1.05rem;
+}
+.btn[disabled] { opacity: .5; }
+.field {
+  width: 100%; padding: 12px; margin-bottom: 10px;
+  border: 1px solid var(--line); border-radius: 10px;
+  background: var(--bg);
+}
+.muted { color: var(--ink-2); font-size: .85rem; }
+.error { color: var(--gasto); font-size: .9rem; min-height: 1.2em; margin: 8px 0; }
+.empty { text-align: center; padding: 40px 16px; color: var(--ink-2); }
+
+/* app header */
+header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: calc(env(safe-area-inset-top) + 14px) var(--pad) 14px;
+}
+header .salir { background: none; border: 0; color: var(--ink-2); font-size: .9rem; }
+
+/* bottom nav (phone) */
+nav {
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 10;
+  display: flex;
+  background: var(--card); border-top: 1px solid var(--line);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+nav a {
+  flex: 1; text-align: center; padding: 8px 0 6px;
+  text-decoration: none; color: var(--ink-2); font-size: .72rem;
+  position: relative;
+}
+nav a .ico { display: block; font-size: 1.45rem; }
+nav a.activo { color: var(--accent); font-weight: 600; }
+nav a .badge {
+  position: absolute; transform: translate(10px, -4px);
+  background: var(--gasto); color: #fff; border-radius: 9px;
+  font-size: .65rem; padding: 1px 5px; font-weight: 700;
+}
+
+/* ============ auth screen ============ */
+#pantalla-auth { max-width: 420px; margin: 12vh auto 0; padding: 0 var(--pad); }
+#pantalla-auth .logo { text-align: center; font-size: 2.6rem; margin-bottom: 4px; }
+#pantalla-auth h1 { text-align: center; margin-bottom: 24px; }
+
+/* ============ inbox screen ============ */
+.mov {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px var(--pad);
+  background: var(--card); border-bottom: 1px solid var(--line);
+}
+.mov:first-child { border-radius: var(--radius) var(--radius) 0 0; }
+.mov:last-child { border-radius: 0 0 var(--radius) var(--radius); border-bottom: 0; }
+.mov:only-child { border-radius: var(--radius); }
+.lista { margin: 0 var(--pad) 12px; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+.mov .quien { flex: 1; min-width: 0; }
+.mov .quien .titulo { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mov .monto { font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.mov .monto.neg { color: var(--gasto); }
+.mov .monto.pos { color: var(--ingreso); }
+.mov .cat-emoji { font-size: 1.4rem; width: 34px; text-align: center; flex: none; }
+.mov .borrar { background: none; border: 0; color: var(--ink-2); font-size: 1.1rem; padding: 6px; }
+
+/* categorize sheet */
+#sheet[hidden] { display: none; }
+#sheet {
+  position: fixed; inset: 0; z-index: 20;
+  background: rgba(0,0,0,.45);
+  display: flex; align-items: flex-end;
+}
+#sheet .panel {
+  background: var(--card); width: 100%;
+  border-radius: var(--radius) var(--radius) 0 0;
+  padding: var(--pad) var(--pad) calc(var(--pad) + env(safe-area-inset-bottom));
+  max-height: 75vh; overflow-y: auto;
+}
+.cat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px; }
+.cat-btn {
+  border: 1px solid var(--line); border-radius: 10px;
+  background: var(--bg); padding: 10px 4px;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  font-size: .78rem; color: var(--ink);
+}
+.cat-btn .em { font-size: 1.5rem; }
+.cat-btn.sel { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--bg)); }
+
+/* ============ quick add screen ============ */
+.tipo-toggle { display: flex; gap: 8px; margin-bottom: 12px; }
+.tipo-toggle button {
+  flex: 1; padding: 10px; border-radius: 10px; border: 1px solid var(--line);
+  background: var(--bg); color: var(--ink); font-weight: 600;
+}
+.tipo-toggle button.sel-gasto { background: var(--gasto); border-color: var(--gasto); color: #fff; }
+.tipo-toggle button.sel-ingreso { background: var(--ingreso); border-color: var(--ingreso); color: #fff; }
+#monto-input {
+  width: 100%; border: 0; background: none; text-align: center;
+  font-size: 2.6rem; font-weight: 700; outline: none; margin: 6px 0 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ============ wide (Mac) layout ============ */
+@media (min-width: 800px) {
+  body { padding-bottom: 0; padding-left: 210px; }
+  nav {
+    top: 0; right: auto; width: 210px; height: 100vh;
+    flex-direction: column; justify-content: flex-start;
+    border-top: 0; border-right: 1px solid var(--line);
+    padding-top: 24px;
+  }
+  nav a { flex: none; display: flex; align-items: center; gap: 10px; text-align: left; padding: 12px 20px; font-size: .95rem; }
+  nav a .ico { font-size: 1.2rem; }
+  main { max-width: 760px; margin: 0 auto; }
+  #sheet { align-items: center; justify-content: center; }
+  #sheet .panel { max-width: 440px; border-radius: var(--radius); }
+}
+</style>
+</head>
+<body>
+
+<!-- ============ auth ============ -->
+<section id="pantalla-auth" hidden>
+  <div class="logo">🏦</div>
+  <h1>Serge Finance</h1>
+  <form id="form-login">
+    <input class="field" type="email" id="login-email" placeholder="Correo" autocomplete="username" required>
+    <input class="field" type="password" id="login-pass" placeholder="Contraseña" autocomplete="current-password" required>
+    <div class="error" id="login-error"></div>
+    <button class="btn" type="submit">Entrar</button>
+  </form>
+</section>
+
+<!-- ============ app ============ -->
+<div id="app" hidden>
+  <header>
+    <h1 id="titulo">Inbox</h1>
+    <button class="salir" id="btn-salir">Salir</button>
+  </header>
+
+  <main>
+    <section id="pantalla-inbox" hidden>
+      <div id="inbox-lista"></div>
+    </section>
+
+    <section id="pantalla-agregar" hidden>
+      <div class="card">
+        <div class="tipo-toggle">
+          <button type="button" id="t-gasto">Gasto</button>
+          <button type="button" id="t-ingreso">Ingreso</button>
+        </div>
+        <input id="monto-input" type="text" inputmode="decimal" placeholder="$0.00" autocomplete="off">
+        <h2>Categoría</h2>
+        <div class="cat-grid" id="add-cats"></div>
+        <h2 style="margin-top:14px">Cuenta</h2>
+        <select class="field" id="add-cuenta"></select>
+        <input class="field" id="add-nota" type="text" placeholder="Nota (opcional)" autocomplete="off">
+        <div class="error" id="add-error"></div>
+        <button class="btn" id="btn-guardar">Guardar</button>
+      </div>
+    </section>
+
+    <section id="pantalla-movs" hidden>
+      <div id="movs-lista"></div>
+    </section>
+  </main>
+
+  <nav>
+    <a href="#/inbox" data-ruta="inbox"><span class="ico">📥</span>Inbox<span class="badge" id="inbox-badge" hidden></span></a>
+    <a href="#/agregar" data-ruta="agregar"><span class="ico">➕</span>Agregar</a>
+    <a href="#/movimientos" data-ruta="movs"><span class="ico">📋</span>Movimientos</a>
+  </nav>
+</div>
+
+<!-- categorize sheet (inbox) -->
+<div id="sheet" hidden>
+  <div class="panel">
+    <h2 id="sheet-titulo"></h2>
+    <div class="cat-grid" id="sheet-cats"></div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+/* ============ config ============ */
+const CONFIG = {
+  url: 'https://qmftfhvixszzqtfmxsgv.supabase.co',
+  key: 'sb_publishable_nlzZJEr7hFjjoq-IXHZxHA_kE8M3t6Z',
+};
+
+/* ============ fmt: money, dates ============ */
+const fmt = {
+  _mxn: new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }),
+  mxn(n) { return this._mxn.format(n); },
+  hoy() { // today's date in America/Chihuahua as YYYY-MM-DD
+    return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Chihuahua' }).format(new Date());
+  },
+  fecha(iso) { // "2026-09-16" -> "mar 16 sep"
+    const d = new Date(iso + 'T12:00:00');
+    return new Intl.DateTimeFormat('es-MX', { weekday: 'short', day: 'numeric', month: 'short' }).format(d);
+  },
+};
+
+/* ============ api: the only code that talks to Supabase ============ */
+const api = {
+  session: null,
+
+  loadSession() {
+    try { this.session = JSON.parse(localStorage.getItem('sf_session')); } catch { this.session = null; }
+  },
+  saveSession(s) {
+    this.session = s;
+    try {
+      if (s) localStorage.setItem('sf_session', JSON.stringify(s));
+      else localStorage.removeItem('sf_session');
+    } catch {}
+  },
+
+  async _auth(path, body) {
+    const r = await fetch(`${CONFIG.url}/auth/v1/${path}`, {
+      method: 'POST',
+      headers: { apikey: CONFIG.key, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error_description || data.msg || 'Error de autenticación');
+    return data;
+  },
+
+  async signIn(email, password) {
+    const d = await this._auth('token?grant_type=password', { email, password });
+    this.saveSession({ access_token: d.access_token, refresh_token: d.refresh_token, expires_at: d.expires_at });
+  },
+  signOut() { this.saveSession(null); },
+
+  async _token() {
+    if (!this.session) throw new Error('Sin sesión');
+    if (this.session.expires_at * 1000 < Date.now() + 60000) {
+      const d = await this._auth('token?grant_type=refresh_token', { refresh_token: this.session.refresh_token });
+      this.saveSession({ access_token: d.access_token, refresh_token: d.refresh_token, expires_at: d.expires_at });
+    }
+    return this.session.access_token;
+  },
+
+  async _rest(method, path, body) {
+    const token = await this._token();
+    const r = await fetch(`${CONFIG.url}/rest/v1/${path}`, {
+      method,
+      headers: {
+        apikey: CONFIG.key,
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        Prefer: method === 'GET' ? '' : 'return=representation',
+      },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    if (!r.ok) throw new Error(`Supabase ${r.status}: ${await r.text()}`);
+    return r.status === 204 ? null : r.json();
+  },
+
+  listCategorias() { return this._rest('GET', 'categorias?select=*&order=orden'); },
+  listCuentas()    { return this._rest('GET', 'cuentas?select=*&activa=eq.true&order=creado'); },
+  listInbox() {
+    return this._rest('GET', 'movimientos?select=*&categoria_id=is.null&order=creado.desc');
+  },
+  listMovimientos(limit = 100) {
+    return this._rest('GET',
+      `movimientos?select=*,categorias(nombre,emoji),cuentas(nombre)&categoria_id=not.is.null&order=fecha.desc,creado.desc&limit=${limit}`);
+  },
+  addMovimiento(mov)          { return this._rest('POST', 'movimientos', mov); },
+  categorizar(id, categoria_id) { return this._rest('PATCH', `movimientos?id=eq.${id}`, { categoria_id }); },
+  borrarMovimiento(id)        { return this._rest('DELETE', `movimientos?id=eq.${id}`); },
+};
+
+/* ============ store: single in-memory state ============ */
+const store = {
+  categorias: [],
+  cuentas: [],
+  inbox: [],
+  movimientos: [],
+  add: { tipo: 'gasto', categoria_id: null }, // quick-add form state
+
+  async cargarCatalogos() {
+    [this.categorias, this.cuentas] = await Promise.all([api.listCategorias(), api.listCuentas()]);
+  },
+  async cargarInbox() { this.inbox = await api.listInbox(); views.badge(); },
+  async cargarMovs()  { this.movimientos = await api.listMovimientos(); },
+  cat(id) { return this.categorias.find(c => c.id === id); },
+};
+
+/* ============ views: one render per screen; they only draw the store ============ */
+const $ = sel => document.querySelector(sel);
+const esc = s => (s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+const views = {
+  badge() {
+    const b = $('#inbox-badge');
+    b.hidden = store.inbox.length === 0;
+    b.textContent = store.inbox.length;
+  },
+
+  filaMov(m, opts = {}) {
+    const neg = m.monto < 0;
+    const cat = m.categorias;
+    const titulo = m.comercio || m.nota || (cat ? cat.nombre : 'Sin descripción');
+    const sub = [fmt.fecha(m.fecha), m.cuentas?.nombre, m.nota && m.comercio ? m.nota : null].filter(Boolean).join(' · ');
+    return `
+      <div class="mov" data-id="${m.id}">
+        <span class="cat-emoji">${cat ? cat.emoji : '❓'}</span>
+        <div class="quien">
+          <div class="titulo">${esc(titulo)}</div>
+          <div class="muted">${esc(sub)}</div>
+        </div>
+        <span class="monto ${neg ? 'neg' : 'pos'}">${fmt.mxn(m.monto)}</span>
+        ${opts.borrable ? '<button class="borrar" title="Borrar">✕</button>' : ''}
+      </div>`;
+  },
+
+  inbox() {
+    $('#titulo').textContent = 'Inbox';
+    const el = $('#inbox-lista');
+    if (store.inbox.length === 0) {
+      el.innerHTML = '<div class="empty">🎉 Inbox vacío.<br>Todo está categorizado.</div>';
+      return;
+    }
+    el.innerHTML = '<div class="lista">' + store.inbox.map(m => this.filaMov(m, { borrable: true })).join('') + '</div>'
+      + '<p class="muted" style="margin:0 16px">Toca un movimiento para categorizarlo.</p>';
+  },
+
+  agregar() {
+    $('#titulo').textContent = 'Agregar';
+    const t = store.add.tipo;
+    $('#t-gasto').className = t === 'gasto' ? 'sel-gasto' : '';
+    $('#t-ingreso').className = t === 'ingreso' ? 'sel-ingreso' : '';
+    $('#add-cats').innerHTML = store.categorias.map(c => `
+      <button type="button" class="cat-btn ${c.id === store.add.categoria_id ? 'sel' : ''}" data-cat="${c.id}">
+        <span class="em">${c.emoji}</span>${esc(c.nombre)}
+      </button>`).join('');
+    const sel = $('#add-cuenta');
+    if (sel.options.length !== store.cuentas.length) {
+      sel.innerHTML = store.cuentas.map(c => `<option value="${c.id}">${esc(c.nombre)}</option>`).join('');
+    }
+  },
+
+  movs() {
+    $('#titulo').textContent = 'Movimientos';
+    const el = $('#movs-lista');
+    if (store.movimientos.length === 0) {
+      el.innerHTML = '<div class="empty">Aún no hay movimientos.</div>';
+      return;
+    }
+    el.innerHTML = '<div class="lista">' + store.movimientos.map(m => this.filaMov(m, { borrable: true })).join('') + '</div>';
+  },
+
+  sheet(mov) {
+    $('#sheet-titulo').textContent = `${fmt.mxn(mov.monto)} · ${mov.comercio || mov.nota || fmt.fecha(mov.fecha)}`;
+    $('#sheet-cats').innerHTML = store.categorias.map(c => `
+      <button type="button" class="cat-btn" data-cat="${c.id}">
+        <span class="em">${c.emoji}</span>${esc(c.nombre)}
+      </button>`).join('');
+    $('#sheet').hidden = false;
+    $('#sheet').dataset.mov = mov.id;
+  },
+};
+
+/* ============ router: hash navigation ============ */
+const router = {
+  rutas: {
+    inbox:   { hash: '#/inbox',       pantalla: 'pantalla-inbox',   async entrar() { await store.cargarInbox(); views.inbox(); } },
+    agregar: { hash: '#/agregar',     pantalla: 'pantalla-agregar', async entrar() { views.agregar(); } },
+    movs:    { hash: '#/movimientos', pantalla: 'pantalla-movs',    async entrar() { await store.cargarMovs(); views.movs(); } },
+  },
+  actual: null,
+
+  async ir() {
+    const nombre = Object.keys(this.rutas).find(r => this.rutas[r].hash === location.hash) || 'inbox';
+    this.actual = nombre;
+    for (const [n, r] of Object.entries(this.rutas)) {
+      document.getElementById(r.pantalla).hidden = n !== nombre;
+    }
+    document.querySelectorAll('nav a').forEach(a => a.classList.toggle('activo', a.dataset.ruta === nombre));
+    try { await this.rutas[nombre].entrar(); }
+    catch (e) { alert(e.message); }
+  },
+};
+
+/* ============ app: init + events (action → api → store → render) ============ */
+async function iniciarApp() {
+  $('#pantalla-auth').hidden = true;
+  $('#app').hidden = false;
+  await store.cargarCatalogos();
+  await store.cargarInbox();
+  if (!store.add.categoria_id && store.categorias.length) store.add.categoria_id = store.categorias[0].id;
+  if (!location.hash) location.hash = '#/inbox';
+  await router.ir();
+}
+
+function mostrarLogin() {
+  $('#app').hidden = true;
+  $('#pantalla-auth').hidden = false;
+}
+
+/* --- login --- */
+$('#form-login').addEventListener('submit', async e => {
+  e.preventDefault();
+  const btn = e.target.querySelector('button');
+  btn.disabled = true;
+  $('#login-error').textContent = '';
+  try {
+    await api.signIn($('#login-email').value.trim(), $('#login-pass').value);
+    await iniciarApp();
+  } catch (err) {
+    $('#login-error').textContent = err.message;
+  } finally { btn.disabled = false; }
+});
+
+$('#btn-salir').addEventListener('click', () => { api.signOut(); mostrarLogin(); });
+
+/* --- navigation --- */
+window.addEventListener('hashchange', () => { if (!$('#app').hidden) router.ir(); });
+
+/* --- inbox: tap row = categorize; ✕ = delete --- */
+function alTocarFila(listaEl, coleccion) {
+  listaEl.addEventListener('click', async e => {
+    const fila = e.target.closest('.mov');
+    if (!fila) return;
+    const mov = store[coleccion].find(m => m.id === fila.dataset.id);
+    if (!mov) return;
+    if (e.target.closest('.borrar')) {
+      if (!confirm(`¿Borrar ${fmt.mxn(mov.monto)}?`)) return;
+      await api.borrarMovimiento(mov.id);
+      await router.ir();
+      store.cargarInbox();
+      return;
+    }
+    if (coleccion === 'inbox') views.sheet(mov);
+  });
+}
+alTocarFila($('#inbox-lista'), 'inbox');
+alTocarFila($('#movs-lista'), 'movimientos');
+
+$('#sheet').addEventListener('click', async e => {
+  const btn = e.target.closest('.cat-btn');
+  if (!btn && e.target.id !== 'sheet') return; // tap outside closes
+  $('#sheet').hidden = true;
+  if (!btn) return;
+  try {
+    await api.categorizar($('#sheet').dataset.mov, btn.dataset.cat);
+    await store.cargarInbox();
+    views.inbox();
+  } catch (err) { alert(err.message); }
+});
+
+/* --- quick add --- */
+$('#t-gasto').addEventListener('click', () => { store.add.tipo = 'gasto'; views.agregar(); });
+$('#t-ingreso').addEventListener('click', () => { store.add.tipo = 'ingreso'; views.agregar(); });
+$('#add-cats').addEventListener('click', e => {
+  const btn = e.target.closest('.cat-btn');
+  if (!btn) return;
+  store.add.categoria_id = btn.dataset.cat;
+  views.agregar();
+});
+
+$('#btn-guardar').addEventListener('click', async () => {
+  const err = $('#add-error');
+  err.textContent = '';
+  const bruto = parseFloat($('#monto-input').value.replace(/[$,\s]/g, ''));
+  if (!bruto || bruto <= 0) { err.textContent = 'Escribe un monto válido.'; return; }
+  const btn = $('#btn-guardar');
+  btn.disabled = true;
+  try {
+    await api.addMovimiento({
+      fecha: fmt.hoy(),
+      monto: store.add.tipo === 'gasto' ? -bruto : bruto,
+      categoria_id: store.add.categoria_id,
+      cuenta_id: $('#add-cuenta').value,
+      nota: $('#add-nota').value.trim() || null,
+      origen: 'app',
+      tipo: store.add.tipo,
+    });
+    $('#monto-input').value = '';
+    $('#add-nota').value = '';
+    location.hash = '#/movimientos';
+  } catch (e) { err.textContent = e.message; }
+  finally { btn.disabled = false; }
+});
+
+/* --- boot --- */
+api.loadSession();
+if (api.session) {
+  iniciarApp().catch(() => { api.signOut(); mostrarLogin(); });
+} else {
+  mostrarLogin();
+}
+</script>
+</body>
+</html>
