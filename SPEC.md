@@ -100,7 +100,7 @@ All tables have `id uuid`, `user_id uuid` (RLS), `creado timestamptz`. Amounts a
 |---|---|---|
 | `movimientos` | `fecha date, monto, cuenta_id, categoria_id (null = inbox), nota, comercio, origen (apple_pay/sms/manual/app/recurrente), tipo (gasto/ingreso/ahorro/ajuste), meta_id` | The ledger. Inbox = rows with `categoria_id is null`. |
 | `cuentas` | `nombre, tipo (efectivo/debito/credito), saldo_inicial, activa` | Balance = saldo_inicial + Σ movimientos. |
-| `categorias` | `nombre, emoji, discrecional bool, orden` | Aim for 10–12. |
+| `categorias` | `nombre, icono, discrecional bool, orden` | Aim for 10–12. `icono` is the slug of a minimalist inline-SVG icon drawn by the app (no emoji). |
 | `presupuestos` | `mes (YYYY-MM), categoria_id, limite` | One row per category per month. |
 | `metas` | `nombre, objetivo, fecha_objetivo, activa` | Progress = Σ movimientos tipo ahorro with `meta_id`. |
 | `recurrentes` | `nombre, monto, dia, categoria_id, cuenta_id, activa` | Generated as pending on `dia`. |

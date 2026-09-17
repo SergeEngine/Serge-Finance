@@ -91,7 +91,8 @@ nav a {
   text-decoration: none; color: var(--ink-2); font-size: .72rem;
   position: relative;
 }
-nav a .ico { display: block; font-size: 1.45rem; }
+nav a .ico { display: block; }
+nav a .ico svg { display: block; margin: 0 auto 1px; }
 nav a.activo { color: var(--accent); font-weight: 600; }
 nav a .badge {
   position: absolute; transform: translate(10px, -4px);
@@ -101,7 +102,7 @@ nav a .badge {
 
 /* ============ auth screen ============ */
 #pantalla-auth { max-width: 420px; margin: 12vh auto 0; padding: 0 var(--pad); }
-#pantalla-auth .logo { text-align: center; font-size: 2.6rem; margin-bottom: 4px; }
+#pantalla-auth .logo { display: flex; justify-content: center; color: var(--accent); margin-bottom: 8px; }
 #pantalla-auth h1 { text-align: center; margin-bottom: 24px; }
 
 /* ============ inbox screen ============ */
@@ -119,7 +120,7 @@ nav a .badge {
 .mov .monto { font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .mov .monto.neg { color: var(--gasto); }
 .mov .monto.pos { color: var(--ingreso); }
-.mov .cat-emoji { font-size: 1.4rem; width: 34px; text-align: center; flex: none; }
+.mov .cat-emoji { width: 34px; flex: none; display: flex; align-items: center; justify-content: center; color: var(--ink-2); }
 .mov .borrar { background: none; border: 0; color: var(--ink-2); font-size: 1.1rem; padding: 6px; }
 
 /* categorize sheet */
@@ -142,7 +143,8 @@ nav a .badge {
   display: flex; flex-direction: column; align-items: center; gap: 2px;
   font-size: .78rem; color: var(--ink);
 }
-.cat-btn .em { font-size: 1.5rem; }
+.cat-btn .em { display: flex; color: var(--ink-2); }
+.cat-btn.sel .em { color: var(--accent); }
 .cat-btn.sel { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--bg)); }
 
 /* ============ quick add screen ============ */
@@ -180,7 +182,7 @@ nav a .badge {
 
 <!-- ============ auth ============ -->
 <section id="pantalla-auth" hidden>
-  <div class="logo">🏦</div>
+  <div class="logo"><svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8V7a2 2 0 0 1 2-2h13"/><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M16.5 12.5h.01"/></svg></div>
   <h1>Serge Finance</h1>
   <form id="form-login">
     <input class="field" type="email" id="login-email" placeholder="Correo" autocomplete="username" required>
@@ -225,9 +227,9 @@ nav a .badge {
   </main>
 
   <nav>
-    <a href="#/inbox" data-ruta="inbox"><span class="ico">📥</span>Inbox<span class="badge" id="inbox-badge" hidden></span></a>
-    <a href="#/agregar" data-ruta="agregar"><span class="ico">➕</span>Agregar</a>
-    <a href="#/movimientos" data-ruta="movs"><span class="ico">📋</span>Movimientos</a>
+    <a href="#/inbox" data-ruta="inbox"><span class="ico" data-icon="inbox"></span>Inbox<span class="badge" id="inbox-badge" hidden></span></a>
+    <a href="#/agregar" data-ruta="agregar"><span class="ico" data-icon="plus"></span>Agregar</a>
+    <a href="#/movimientos" data-ruta="movs"><span class="ico" data-icon="list"></span>Movimientos</a>
   </nav>
 </div>
 
@@ -247,6 +249,32 @@ const CONFIG = {
   url: 'https://qmftfhvixszzqtfmxsgv.supabase.co',
   key: 'sb_publishable_nlzZJEr7hFjjoq-IXHZxHA_kE8M3t6Z',
 };
+
+/* ============ icons: minimalist inline SVG set (stroke, currentColor) ============ */
+const ICONS = {
+  cart:    '<circle cx="9" cy="20" r="1.4"/><circle cx="17" cy="20" r="1.4"/><path d="M3 4h2l2.3 11h10.4l2-8H7"/>',
+  utensils:'<path d="M8 3v18M5 3v5a3 3 0 0 0 6 0V3"/><path d="M17 3c-1.8 3.5-1.8 7 0 9v9"/>',
+  coffee:  '<path d="M4 9h12v5a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4V9z"/><path d="M16 10h2a2.5 2.5 0 0 1 0 5h-2"/><path d="M7 5V3M10 5V3M13 5V3"/>',
+  car:     '<path d="M4 16l1.2-4.5A2 2 0 0 1 7.1 10h9.8a2 2 0 0 1 1.9 1.5L20 16"/><path d="M3 16h18v3h-2.5M5.5 19H3v-3"/><circle cx="7.5" cy="19" r="1.4"/><circle cx="16.5" cy="19" r="1.4"/>',
+  home:    '<path d="M3 11l9-8 9 8"/><path d="M5 9.5V20h14V9.5"/>',
+  health:  '<rect x="3" y="3" width="18" height="18" rx="4"/><path d="M12 8v8M8 12h8"/>',
+  shirt:   '<path d="M8 3L4 6l2 4 2-1v11h8V9l2 1 2-4-4-3c0 2-8 2-8 0z"/>',
+  ticket:  '<path d="M3 8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-2a2 2 0 0 0 0-4V8z"/><path d="M14 6v2.5M14 11v2M14 15.5V18"/>',
+  tv:      '<rect x="2" y="7" width="20" height="13" rx="2"/><path d="M8 3l4 4 4-4"/>',
+  gift:    '<path d="M3 8h18v4H3zM5 12v8h14v-8M12 8v12"/><path d="M12 8c-1.5-3-5.5-3.5-5.5-1.5S10 8 12 8zm0 0c1.5-3 5.5-3.5 5.5-1.5S14 8 12 8z"/>',
+  plane:   '<path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/>',
+  coin:    '<circle cx="12" cy="12" r="9"/><path d="M12 6.5v11M14.8 9.2a2.8 2.8 0 0 0-2.8-1.4c-1.6 0-2.7.9-2.7 2.1s1 1.8 2.7 2.1 2.8.9 2.8 2.1-1.2 2.1-2.8 2.1a2.8 2.8 0 0 1-2.8-1.4"/>',
+  cash:    '<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 12h.01M18 12h.01"/>',
+  help:    '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.2a2.5 2.5 0 1 1 3.4 2.4c-.7.3-.9.8-.9 1.6"/><path d="M12 17h.01"/>',
+  inbox:   '<path d="M22 13h-5l-2 3h-6l-2-3H2"/><path d="M5.5 5h13L22 13v4a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-4l3.5-8z"/>',
+  plus:    '<path d="M12 5v14M5 12h14"/>',
+  list:    '<path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01"/>',
+  wallet:  '<path d="M3 8V7a2 2 0 0 1 2-2h13"/><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M16.5 12.5h.01"/>',
+};
+function icon(name, size = 22) {
+  return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name] || ICONS.help}</svg>`;
+}
 
 /* ============ fmt: money, dates ============ */
 const fmt = {
@@ -366,7 +394,7 @@ const views = {
     const sub = [fmt.fecha(m.fecha), m.cuentas?.nombre, m.nota && m.comercio ? m.nota : null].filter(Boolean).join(' · ');
     return `
       <div class="mov" data-id="${m.id}">
-        <span class="cat-emoji">${cat ? cat.emoji : '❓'}</span>
+        <span class="cat-emoji">${icon(cat ? cat.icono : 'help')}</span>
         <div class="quien">
           <div class="titulo">${esc(titulo)}</div>
           <div class="muted">${esc(sub)}</div>
@@ -380,7 +408,7 @@ const views = {
     $('#titulo').textContent = 'Inbox';
     const el = $('#inbox-lista');
     if (store.inbox.length === 0) {
-      el.innerHTML = '<div class="empty">🎉 Inbox vacío.<br>Todo está categorizado.</div>';
+      el.innerHTML = '<div class="empty">Inbox vacío.<br>Todo está categorizado.</div>';
       return;
     }
     el.innerHTML = '<div class="lista">' + store.inbox.map(m => this.filaMov(m, { borrable: true })).join('') + '</div>'
@@ -394,7 +422,7 @@ const views = {
     $('#t-ingreso').className = t === 'ingreso' ? 'sel-ingreso' : '';
     $('#add-cats').innerHTML = store.categorias.map(c => `
       <button type="button" class="cat-btn ${c.id === store.add.categoria_id ? 'sel' : ''}" data-cat="${c.id}">
-        <span class="em">${c.emoji}</span>${esc(c.nombre)}
+        <span class="em">${icon(c.icono)}</span>${esc(c.nombre)}
       </button>`).join('');
     const sel = $('#add-cuenta');
     if (sel.options.length !== store.cuentas.length) {
@@ -416,7 +444,7 @@ const views = {
     $('#sheet-titulo').textContent = `${fmt.mxn(mov.monto)} · ${mov.comercio || mov.nota || fmt.fecha(mov.fecha)}`;
     $('#sheet-cats').innerHTML = store.categorias.map(c => `
       <button type="button" class="cat-btn" data-cat="${c.id}">
-        <span class="em">${c.emoji}</span>${esc(c.nombre)}
+        <span class="em">${icon(c.icono)}</span>${esc(c.nombre)}
       </button>`).join('');
     $('#sheet').hidden = false;
     $('#sheet').dataset.mov = mov.id;
@@ -546,6 +574,7 @@ $('#btn-guardar').addEventListener('click', async () => {
 });
 
 /* --- boot --- */
+document.querySelectorAll('[data-icon]').forEach(el => { el.innerHTML = icon(el.dataset.icon, 24); });
 api.loadSession();
 if (api.session) {
   iniciarApp().catch(() => { api.signOut(); mostrarLogin(); });

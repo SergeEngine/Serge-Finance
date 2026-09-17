@@ -22,7 +22,7 @@ create table if not exists categorias (
   id           uuid primary key default gen_random_uuid(),
   user_id      uuid not null default auth.uid() references auth.users (id),
   nombre       text not null,
-  emoji        text not null default '',
+  icono        text not null default 'help',  -- slug of an inline SVG icon in the app
   discrecional boolean not null default false,
   orden        int not null default 0,
   creado       timestamptz not null default now(),
@@ -186,8 +186,8 @@ grant select on estado to authenticated;
 
 -- ============================================================
 -- agregar_movimiento: insert helper for Shortcuts (SPEC §4).
--- Takes the category by NAME ("Súper" or "🛒 Súper") so the shortcut
--- never handles UUIDs; unknown/empty name -> null -> inbox.
+-- Takes the category by NAME ("Súper") so the shortcut never handles
+-- UUIDs; unknown/empty name -> null -> inbox.
 -- SECURITY INVOKER (default): runs as the caller, RLS applies.
 -- ============================================================
 
@@ -207,7 +207,7 @@ begin
   select id into v_cat
     from categorias
    where user_id = auth.uid()
-     and (nombre = p_categoria or (emoji || ' ' || nombre) = p_categoria);
+     and nombre = p_categoria;
 
   insert into movimientos (monto, categoria_id, nota, comercio, origen, tipo)
   values (p_monto, v_cat, nullif(trim(p_nota), ''), p_comercio, p_origen, p_tipo)
@@ -241,19 +241,19 @@ begin
     (uid, 'Santander TDC',    'credito')
   on conflict (user_id, nombre) do nothing;
 
-  insert into categorias (user_id, nombre, emoji, discrecional, orden) values
-    (uid, 'Súper',          '🛒', false, 1),
-    (uid, 'Comida fuera',   '🌮', true,  2),
-    (uid, 'Café/antojos',   '☕', true,  3),
-    (uid, 'Transporte',     '🚗', false, 4),
-    (uid, 'Renta/servicios','🏠', false, 5),
-    (uid, 'Salud',          '💊', false, 6),
-    (uid, 'Ropa',           '👕', true,  7),
-    (uid, 'Ocio/salidas',   '🎉', true,  8),
-    (uid, 'Suscripciones',  '📺', false, 9),
-    (uid, 'Regalos',        '🎁', true, 10),
-    (uid, 'Viajes',         '✈️', true, 11),
-    (uid, 'Ahorro',         '🐷', false, 12),
-    (uid, 'Ingreso',        '💵', false, 13)
+  insert into categorias (user_id, nombre, icono, discrecional, orden) values
+    (uid, 'Súper',          'cart',     false, 1),
+    (uid, 'Comida fuera',   'utensils', true,  2),
+    (uid, 'Café/antojos',   'coffee',   true,  3),
+    (uid, 'Transporte',     'car',      false, 4),
+    (uid, 'Renta/servicios','home',     false, 5),
+    (uid, 'Salud',          'health',   false, 6),
+    (uid, 'Ropa',           'shirt',    true,  7),
+    (uid, 'Ocio/salidas',   'ticket',   true,  8),
+    (uid, 'Suscripciones',  'tv',       false, 9),
+    (uid, 'Regalos',        'gift',     true, 10),
+    (uid, 'Viajes',         'plane',    true, 11),
+    (uid, 'Ahorro',         'coin',     false, 12),
+    (uid, 'Ingreso',        'cash',     false, 13)
   on conflict (user_id, nombre) do nothing;
 end $$;

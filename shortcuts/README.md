@@ -33,10 +33,10 @@ En Shortcuts → **+** → nombre «Gasto» → agrega estas acciones en orden
    (los gastos se guardan en negativo)
 3. **Ask for Input** (otra vez)
    - Input Type: **Text** · Prompt: `¿Nota?` · Activa **"Allow Empty Answer"**
-4. **List** (Lista) — un renglón por categoría, tal cual (emoji, espacio, nombre):
-   - `🛒 Súper` · `🌮 Comida fuera` · `☕ Café/antojos` · `🚗 Transporte` ·
-     `🏠 Renta/servicios` · `💊 Salud` · `👕 Ropa` · `🎉 Ocio/salidas` ·
-     `📺 Suscripciones` · `🎁 Regalos` · `✈️ Viajes` · `🐷 Ahorro` · `📥 Después`
+4. **List** (Lista) — un renglón por categoría, con el nombre exacto:
+   - `Súper` · `Comida fuera` · `Café/antojos` · `Transporte` ·
+     `Renta/servicios` · `Salud` · `Ropa` · `Ocio/salidas` ·
+     `Suscripciones` · `Regalos` · `Viajes` · `Ahorro` · `Después`
 5. **Choose from List** (Elegir de la lista)
    - List: la **List** del paso 4 · Prompt: `¿Categoría?`
 6. **Get Contents of URL** (Obtener contenido de URL) — *el token*
@@ -65,12 +65,12 @@ En Shortcuts → **+** → nombre «Gasto» → agrega estas acciones en orden
      - `p_nota` (Text) = **Provided Input** (paso 3 — al insertar la variable,
        verifica que sea la del segundo Ask for Input, la de la nota)
 9. **Show Notification** (Mostrar notificación)
-   - Texto: `Guardado ✅`
+   - Texto: `Guardado`
 
 (`origen` y `tipo` ya no se envían: la función usa `manual`/`gasto` por defecto.)
 
-Pruébalo: ejecútalo, pon 50, elige `☕ Café/antojos`, y revisa que aparezca ya
-categorizado en Movimientos. Con `📥 Después` debe caer al Inbox.
+Pruébalo: ejecútalo, pon 50, elige `Café/antojos`, y revisa que aparezca ya
+categorizado en Movimientos. Con `Después` debe caer al Inbox.
 
 ---
 
