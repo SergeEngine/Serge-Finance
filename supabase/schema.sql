@@ -185,6 +185,41 @@ left join disc_gastado dg on dg.user_id = cfg.user_id;
 grant select on estado to authenticated;
 
 -- ============================================================
+-- agregar_movimiento: insert helper for Shortcuts (SPEC §4).
+-- Takes the category by NAME ("Súper" or "🛒 Súper") so the shortcut
+-- never handles UUIDs; unknown/empty name -> null -> inbox.
+-- SECURITY INVOKER (default): runs as the caller, RLS applies.
+-- ============================================================
+
+create or replace function agregar_movimiento(
+  p_monto     numeric,
+  p_categoria text default null,
+  p_nota      text default null,
+  p_comercio  text default null,
+  p_origen    text default 'manual',
+  p_tipo      text default 'gasto'
+) returns uuid
+language plpgsql as $$
+declare
+  v_cat uuid;
+  v_id  uuid;
+begin
+  select id into v_cat
+    from categorias
+   where user_id = auth.uid()
+     and (nombre = p_categoria or (emoji || ' ' || nombre) = p_categoria);
+
+  insert into movimientos (monto, categoria_id, nota, comercio, origen, tipo)
+  values (p_monto, v_cat, nullif(trim(p_nota), ''), p_comercio, p_origen, p_tipo)
+  returning id into v_id;
+
+  return v_id;
+end $$;
+
+revoke execute on function agregar_movimiento from public, anon;
+grant execute on function agregar_movimiento to authenticated;
+
+-- ============================================================
 -- SEED (SPEC §9, resolved 2026-09-16). Create your auth user FIRST,
 -- then run this block. It seeds for the first (only) user in auth.users.
 -- ============================================================

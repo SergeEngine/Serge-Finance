@@ -61,7 +61,7 @@ iOS does not let Shortcuts read push notifications from other apps (Santander's 
 2. **Santander SMS/email alerts — not available.** Checked 2026-09-16: SuperMóvil does not offer per-purchase SMS/email alerts, so there is no automation path for physical-card purchases. They are captured with the quick add below.
 3. **"Gasto" quick add (fallback).** Home-screen widget / Action button / Back Tap: type amount, optional note → inbox. Covers cash, physical-card purchases and anything the triggers miss.
 
-**Categorizing.** Two paths, we test which feels better: (a) the automation itself pops a category menu right after the payment; (b) the notification takes you to the app's **Inbox** screen, where pending items are categorized one by one with big buttons. The app's inbox is always there as the catch-all.
+**Categorizing.** The **"Gasto" quick add shows a category menu in the shortcut itself** (decided 2026-09-16): it calls the `agregar_movimiento` SQL function with the category *name*, so the shortcut never handles ids; picking "Después" (or anything unmatched) sends it to the inbox. For the Apple Pay automation both paths stay open — (a) a category menu right after the payment vs (b) notification → app Inbox — to be tested with real purchases. The app's inbox is always there as the catch-all.
 
 ## 5. Scope
 
