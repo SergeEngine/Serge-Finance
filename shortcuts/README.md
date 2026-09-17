@@ -21,41 +21,42 @@ Para efectivo y compras con tarjeta física. Ponlo como widget en la pantalla de
 inicio, en el botón de Acción, o en Back Tap (Ajustes → Accesibilidad → Tocar →
 Tocar atrás).
 
-En Atajos → **+** → nombre «Gasto» → agrega estas acciones en orden:
+En Shortcuts → **+** → nombre «Gasto» → agrega estas acciones en orden
+(el iPhone está en inglés; entre paréntesis va el nombre en español):
 
-1. **Solicitar entrada** (Ask for Input)
-   - Tipo: **Número** · Pregunta: `¿Cuánto?`
-2. **Solicitar entrada** (otra vez)
-   - Tipo: **Texto** · Pregunta: `¿Nota?` · Activa **"Permitir respuesta vacía"** (Allow empty answer? sí)
-3. **Calcular** (Calculate)
-   - `Entrada proporcionada` (la del paso 1) **× -1**
+1. **Ask for Input** (Solicitar entrada)
+   - Input Type: **Number** · Prompt: `¿Cuánto?`
+2. **Ask for Input** (otra vez)
+   - Input Type: **Text** · Prompt: `¿Nota?` · Activa **"Allow Empty Answer"**
+3. **Calculate** (Calcular)
+   - `Provided Input` (la del paso 1) **× -1**
    (los gastos se guardan en negativo)
-4. **Obtener contenido de URL** (Get Contents of URL) — *el token*
+4. **Get Contents of URL** (Obtener contenido de URL) — *el token*
    - URL: **URL_TOKEN**
-   - Toca la flecha para expandir → Método: **POST**
-   - Encabezados (Headers):
+   - Toca la flecha para expandir → Method: **POST**
+   - Headers:
      - `apikey` = **APIKEY**
      - `Content-Type` = `application/json`
-   - Cuerpo de la solicitud (Request Body): **JSON**
-     - `email` (Texto) = tu correo
-     - `password` (Texto) = tu contraseña
-5. **Obtener valor de diccionario** (Get Dictionary Value)
-   - Obtener **Valor** de la clave `access_token` en `Contenido de URL`
-6. **Obtener contenido de URL** — *el insert*
+   - Request Body: **JSON**
+     - `email` (Text) = tu correo
+     - `password` (Text) = tu contraseña
+5. **Get Dictionary Value** (Obtener valor de diccionario)
+   - Get **Value** for `access_token` in `Contents of URL`
+6. **Get Contents of URL** — *el insert*
    - URL: **URL_INSERT**
-   - Método: **POST**
-   - Encabezados:
+   - Method: **POST**
+   - Headers:
      - `apikey` = **APIKEY**
-     - `Authorization` = `Bearer ` + el **Valor del diccionario** del paso 5
+     - `Authorization` = `Bearer ` + el **Dictionary Value** del paso 5
        (escribe `Bearer`, un espacio, y luego inserta la variable)
      - `Content-Type` = `application/json`
      - `Prefer` = `return=minimal`
-   - Cuerpo: **JSON**
-     - `monto` (Número) = **Resultado del cálculo** (paso 3)
-     - `nota` (Texto) = **Entrada proporcionada** (paso 2)
-     - `origen` (Texto) = `manual`
-     - `tipo` (Texto) = `gasto`
-7. **Mostrar notificación** (Show Notification)
+   - Request Body: **JSON**
+     - `monto` (Number) = **Calculation Result** (paso 3)
+     - `nota` (Text) = **Provided Input** (paso 2)
+     - `origen` (Text) = `manual`
+     - `tipo` (Text) = `gasto`
+7. **Show Notification** (Mostrar notificación)
    - Texto: `Guardado. Categoriza en el inbox 📥`
 
 Pruébalo: ejecútalo, pon 50, y revisa que aparezca en el Inbox de la app.
@@ -66,27 +67,26 @@ Pruébalo: ejecútalo, pon 50, y revisa que aparezca en el Inbox de la app.
 
 Captura automática de cada pago con Apple Pay: monto y comercio, sin teclear.
 
-**Primero el shortcut** («Pago capturado»), en Atajos → **+**:
+**Primero el shortcut** («Pago capturado»), en Shortcuts → **+**:
 
-1. **Recibir entrada**: al crearlo desde la automatización (abajo) la entrada
-   llega sola como variable **Transacción** (Transaction); no necesitas una
-   acción para recibirla.
-2. **Calcular**: **Monto** (Amount, de la variable Transacción) **× -1**
-3. **Obtener contenido de URL** — el token: idéntico al paso 4 del shortcut «Gasto».
-4. **Obtener valor de diccionario** — `access_token`, idéntico al paso 5 de «Gasto».
-5. **Obtener contenido de URL** — el insert: idéntico al paso 6 de «Gasto»,
-   pero el cuerpo JSON es:
-   - `monto` (Número) = **Resultado del cálculo**
-   - `comercio` (Texto) = **Comerciante** (Merchant, de la variable Transacción)
-   - `origen` (Texto) = `apple_pay`
-   - `tipo` (Texto) = `gasto`
-6. **Mostrar notificación**
-   - Texto: `Categoriza: ` + **Monto** + ` · ` + **Comerciante**
+1. La entrada llega sola como variable **Transaction** (Transacción) cuando lo
+   conectes a la automatización (abajo); no necesitas una acción para recibirla.
+2. **Calculate**: **Amount** (Monto, de la variable Transaction) **× -1**
+3. **Get Contents of URL** — el token: idéntico al paso 4 del shortcut «Gasto».
+4. **Get Dictionary Value** — `access_token`, idéntico al paso 5 de «Gasto».
+5. **Get Contents of URL** — el insert: idéntico al paso 6 de «Gasto»,
+   pero el Request Body JSON es:
+   - `monto` (Number) = **Calculation Result**
+   - `comercio` (Text) = **Merchant** (Comerciante, de la variable Transaction)
+   - `origen` (Text) = `apple_pay`
+   - `tipo` (Text) = `gasto`
+6. **Show Notification**
+   - Texto: `Categoriza: ` + **Amount** + ` · ` + **Merchant**
 
-**Luego la automatización**: Atajos → pestaña **Automatización** → **+** →
-**Transacción** → elige tu tarjeta Santander (o "Cualquier tarjeta") →
-**Ejecutar inmediatamente** (¡importante!, no "Ejecutar tras confirmación") →
-Siguiente → elige el shortcut «Pago capturado».
+**Luego la automatización**: Shortcuts → pestaña **Automation** (Automatización)
+→ **+** → **Transaction** (Transacción) → elige tu tarjeta Santander (o "Any
+Card") → **Run Immediately** (¡importante!, no "Run After Confirmation") →
+Next → elige el shortcut «Pago capturado».
 
 Pruébalo con cualquier compra de Apple Pay: debe llegar la notificación y el
 movimiento debe aparecer en el Inbox con el nombre del comercio.
