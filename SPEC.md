@@ -57,11 +57,11 @@ One file, but with labeled rooms — every build session follows this shape so l
 
 iOS does not let Shortcuts read push notifications from other apps (Santander's included). What works:
 
-1. **Apple Pay (primary).** Add the Santander card to Wallet and pay with Apple Pay. The Wallet **"Transaction" automation** runs on every payment and hands the shortcut the amount, merchant and card, with no typing. It inserts the movement with no category (→ inbox) and posts a notification "Categoriza: $185.00 · OXXO".
+1. **Apple Pay (primary).** Cards live in Wallet; the Wallet **"Transaction" automation** (limited to the two tracked cards) runs on every payment and hands the shortcut the amount, merchant and card, with no typing. The shortcut shows the category menu right there, maps the Wallet card name to the account (`cuenta`) with an If, and saves via `agregar_movimiento`; picking "Después" (or dismissing nothing) sends it to the inbox. Ignoring the menu entirely means nothing is saved — capture it later with "Gasto".
 2. **Santander SMS/email alerts — not available.** Checked 2026-09-16: SuperMóvil does not offer per-purchase SMS/email alerts, so there is no automation path for physical-card purchases. They are captured with the quick add below.
 3. **"Gasto" quick add (fallback).** Home-screen widget / Action button / Back Tap: type amount, optional note → inbox. Covers cash, physical-card purchases and anything the triggers miss.
 
-**Categorizing.** The **"Gasto" quick add shows a category menu in the shortcut itself** (decided 2026-09-16): it calls the `agregar_movimiento` SQL function with the category *name*, so the shortcut never handles ids; picking "Después" (or anything unmatched) sends it to the inbox. For the Apple Pay automation both paths stay open — (a) a category menu right after the payment vs (b) notification → app Inbox — to be tested with real purchases. The app's inbox is always there as the catch-all.
+**Categorizing.** Both shortcuts show the **category menu in the shortcut itself** (decided 2026-09-16/17): they call the `agregar_movimiento` SQL function with the category *name* — and, for Apple Pay, the account *name* — so the shortcut never handles ids; picking "Después" (or anything unmatched) sends it to the inbox. The app's inbox is always there as the catch-all.
 
 ## 5. Scope
 

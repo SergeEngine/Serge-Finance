@@ -1,16 +1,15 @@
 # Shortcuts — instrucciones de construcción (SPEC §8 paso 3)
 
-Dos shortcuts se construyen a mano en la app **Atajos** del iPhone. Los dos hacen
-lo mismo al final: dos llamadas HTTP a Supabase (1: obtener token, 2: guardar el
-movimiento). «Gasto» muestra el menú de categorías ahí mismo (elige "Después"
-para mandarlo al Inbox); la automatización de Apple Pay guarda sin categoría y
-el movimiento se categoriza en el Inbox de la app.
+Dos shortcuts se construyen a mano en la app **Atajos** del iPhone. Los dos
+hacen lo mismo al final: dos llamadas HTTP a Supabase (1: obtener token,
+2: guardar con la función `agregar_movimiento`), y los dos muestran el menú de
+categorías ahí mismo — elige "Después" para mandarlo al Inbox. La automatización
+de Apple Pay además registra con qué tarjeta pagaste (cuenta).
 
 Datos que vas a usar (cópialos tal cual):
 
 - **URL_TOKEN**: `https://qmftfhvixszzqtfmxsgv.supabase.co/auth/v1/token?grant_type=password`
-- **URL_RPC**: `https://qmftfhvixszzqtfmxsgv.supabase.co/rest/v1/rpc/agregar_movimiento` (para «Gasto»)
-- **URL_INSERT**: `https://qmftfhvixszzqtfmxsgv.supabase.co/rest/v1/movimientos` (para Apple Pay)
+- **URL_RPC**: `https://qmftfhvixszzqtfmxsgv.supabase.co/rest/v1/rpc/agregar_movimiento`
 - **APIKEY**: `sb_publishable_nlzZJEr7hFjjoq-IXHZxHA_kE8M3t6Z`
 - Tu **correo** y **contraseña** de la app (la contraseña queda guardada solo
   dentro del shortcut, en tu teléfono).
@@ -76,32 +75,49 @@ categorizado en Movimientos. Con `Después` debe caer al Inbox.
 
 ## Shortcut 2: automatización de Apple Pay
 
-Captura automática de cada pago con Apple Pay: monto y comercio, sin teclear.
+Captura automática de cada pago con Apple Pay: monto, comercio y tarjeta
+(cuenta) sin teclear; solo eliges la categoría en el menú que aparece al pagar.
 
-**Primero el shortcut** («Pago capturado»), en Shortcuts → **+**:
+**Primero el shortcut** («Pago capturado»), en Shortcuts → **+**. La entrada
+llega sola como variable **Transaction** (Transacción) cuando lo conectes a la
+automatización (abajo); si al construirlo aún no aparece la variable, deja esos
+campos pendientes y rellénalos después de conectar.
 
-1. La entrada llega sola como variable **Transaction** (Transacción) cuando lo
-   conectes a la automatización (abajo); no necesitas una acción para recibirla.
-2. **Calculate**: **Amount** (Monto, de la variable Transaction) **× -1**
-3. **Get Contents of URL** — el token: idéntico al paso 6 del shortcut «Gasto».
-4. **Get Dictionary Value** — `access_token`, idéntico al paso 7 de «Gasto».
-5. **Get Contents of URL** — el insert. Como «Gasto» pero con **URL_INSERT**
-   (inserta directo, sin categoría → Inbox), un header extra
-   `Prefer` = `return=minimal`, y el Request Body JSON:
-   - `monto` (Number) = **Calculation Result**
-   - `comercio` (Text) = **Merchant** (Comerciante, de la variable Transaction)
-   - `origen` (Text) = `apple_pay`
-   - `tipo` (Text) = `gasto`
-6. **Show Notification**
-   - Texto: `Categoriza: ` + **Amount** + ` · ` + **Merchant**
+1. **Calculate**: **Amount** (Monto, de la variable Transaction) **× -1**
+2. **If** (Si) — condición: **Card or Pass** (de Transaction) — **Contains** —
+   una palabra que solo aparezca en el nombre de UNA de tus dos tarjetas en
+   Wallet (ábrela en Wallet para ver el nombre exacto).
+   - Dentro del **If**: acción **Text** con el nombre EXACTO de esa cuenta en
+     el app, p. ej. `Santander TDC`
+   - Dentro del **Otherwise** (Si no): acción **Text** con la otra, p. ej.
+     `Santander débito`
+   - Después del **End If**, la variable **If Result** vale el texto de la rama
+     que se ejecutó — esa se usa abajo.
+3. **List** — las mismas 13 categorías del shortcut «Gasto»
+   (incluye `Después` para mandarlo al Inbox).
+4. **Choose from List** — List del paso 3 · Prompt: `¿Categoría?`
+5. **Get Contents of URL** — el token: idéntico al paso 6 de «Gasto».
+6. **Get Dictionary Value** — `access_token`, idéntico al paso 7 de «Gasto».
+7. **Get Contents of URL** — guardar. Igual que el paso 8 de «Gasto»
+   (URL_RPC, POST, mismos headers) pero con este Request Body JSON:
+   - `p_monto` (Number) = **Calculation Result** (paso 1)
+   - `p_categoria` (Text) = **Chosen Item** (paso 4)
+   - `p_comercio` (Text) = **Merchant** (de Transaction)
+   - `p_cuenta` (Text) = **If Result** (paso 2)
+   - `p_origen` (Text) = `apple_pay`
+8. **Show Notification**
+   - Texto: `Guardado: ` + **Amount** + ` · ` + **Merchant**
 
 **Luego la automatización**: Shortcuts → pestaña **Automation** (Automatización)
-→ **+** → **Transaction** (Transacción) → elige tu tarjeta Santander (o "Any
-Card") → **Run Immediately** (¡importante!, no "Run After Confirmation") →
+→ **+** → **Transaction** (Transacción) → marca SOLO las tarjetas que quieres
+capturar → **Run Immediately** (¡importante!, no "Run After Confirmation") →
 Next → elige el shortcut «Pago capturado».
 
-Pruébalo con cualquier compra de Apple Pay: debe llegar la notificación y el
-movimiento debe aparecer en el Inbox con el nombre del comercio.
+Pruébalo con una compra real: al pagar aparece el menú de categorías; elige una
+y revisa en el app que el movimiento traiga comercio, categoría y cuenta. Si al
+pagar no puedes atender el menú, elige `Después` y cae al Inbox; si lo ignoras
+por completo el shortcut no termina y el movimiento NO se guarda — captúralo
+luego con «Gasto».
 
 ---
 

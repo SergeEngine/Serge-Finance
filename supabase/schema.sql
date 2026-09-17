@@ -186,8 +186,8 @@ grant select on estado to authenticated;
 
 -- ============================================================
 -- agregar_movimiento: insert helper for Shortcuts (SPEC §4).
--- Takes the category by NAME ("Súper") so the shortcut never handles
--- UUIDs; unknown/empty name -> null -> inbox.
+-- Takes category and account by NAME ("Súper", "Santander TDC") so the
+-- shortcut never handles UUIDs; unknown/empty category -> null -> inbox.
 -- SECURITY INVOKER (default): runs as the caller, RLS applies.
 -- ============================================================
 
@@ -197,11 +197,13 @@ create or replace function agregar_movimiento(
   p_nota      text default null,
   p_comercio  text default null,
   p_origen    text default 'manual',
-  p_tipo      text default 'gasto'
+  p_tipo      text default 'gasto',
+  p_cuenta    text default null
 ) returns uuid
 language plpgsql as $$
 declare
   v_cat uuid;
+  v_cta uuid;
   v_id  uuid;
 begin
   select id into v_cat
@@ -209,8 +211,13 @@ begin
    where user_id = auth.uid()
      and nombre = p_categoria;
 
-  insert into movimientos (monto, categoria_id, nota, comercio, origen, tipo)
-  values (p_monto, v_cat, nullif(trim(p_nota), ''), p_comercio, p_origen, p_tipo)
+  select id into v_cta
+    from cuentas
+   where user_id = auth.uid()
+     and nombre = p_cuenta;
+
+  insert into movimientos (monto, categoria_id, cuenta_id, nota, comercio, origen, tipo)
+  values (p_monto, v_cat, v_cta, nullif(trim(p_nota), ''), p_comercio, p_origen, p_tipo)
   returning id into v_id;
 
   return v_id;
