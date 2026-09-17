@@ -26,11 +26,11 @@ En Shortcuts → **+** → nombre «Gasto» → agrega estas acciones en orden
 
 1. **Ask for Input** (Solicitar entrada)
    - Input Type: **Number** · Prompt: `¿Cuánto?`
-2. **Ask for Input** (otra vez)
-   - Input Type: **Text** · Prompt: `¿Nota?` · Activa **"Allow Empty Answer"**
-3. **Calculate** (Calcular)
-   - `Provided Input` (la del paso 1) **× -1**
+2. **Calculate** (Calcular)
+   - Toma solo el `Provided Input` del paso anterior: **× -1**
    (los gastos se guardan en negativo)
+3. **Ask for Input** (otra vez)
+   - Input Type: **Text** · Prompt: `¿Nota?` · Activa **"Allow Empty Answer"**
 4. **Get Contents of URL** (Obtener contenido de URL) — *el token*
    - URL: **URL_TOKEN**
    - Toca la flecha para expandir → Method: **POST**
@@ -52,8 +52,9 @@ En Shortcuts → **+** → nombre «Gasto» → agrega estas acciones en orden
      - `Content-Type` = `application/json`
      - `Prefer` = `return=minimal`
    - Request Body: **JSON**
-     - `monto` (Number) = **Calculation Result** (paso 3)
-     - `nota` (Text) = **Provided Input** (paso 2)
+     - `monto` (Number) = **Calculation Result** (paso 2)
+     - `nota` (Text) = **Provided Input** (paso 3 — al insertar la variable,
+       verifica que sea la del segundo Ask for Input, la de la nota)
      - `origen` (Text) = `manual`
      - `tipo` (Text) = `gasto`
 7. **Show Notification** (Mostrar notificación)
