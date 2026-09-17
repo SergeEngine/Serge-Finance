@@ -420,7 +420,14 @@ const views = {
     const t = store.add.tipo;
     $('#t-gasto').className = t === 'gasto' ? 'sel-gasto' : '';
     $('#t-ingreso').className = t === 'ingreso' ? 'sel-ingreso' : '';
-    $('#add-cats').innerHTML = store.categorias.map(c => `
+    // categories follow the type: income only offers (and auto-picks) Ingreso
+    const cats = t === 'ingreso'
+      ? store.categorias.filter(c => c.nombre === 'Ingreso')
+      : store.categorias.filter(c => c.nombre !== 'Ingreso');
+    if (!cats.some(c => c.id === store.add.categoria_id)) {
+      store.add.categoria_id = cats[0]?.id ?? null;
+    }
+    $('#add-cats').innerHTML = cats.map(c => `
       <button type="button" class="cat-btn ${c.id === store.add.categoria_id ? 'sel' : ''}" data-cat="${c.id}">
         <span class="em">${icon(c.icono)}</span>${esc(c.nombre)}
       </button>`).join('');
