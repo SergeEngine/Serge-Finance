@@ -83,6 +83,10 @@ h1, h2, h3 { margin: 0; font-weight: 400; }
 .money.in .c, .money.in .d { color: var(--sage-ink); opacity: .85; }
 .money.ox { color: var(--ox-ink); }
 .money.ox .c, .money.ox .d { color: var(--ox-ink); opacity: .85; }
+/* income is blurred until tapped — someone glancing at the screen
+   should not read the salary */
+.money.oculto { filter: blur(.28em); cursor: pointer; user-select: none; transition: filter var(--dur) var(--ease); }
+.money.oculto.ver { filter: none; }
 
 /* progress bar — 2px, oxblood past 100%, sage for goals */
 .bar { height: 2px; background: var(--hair); flex-shrink: 0; }
@@ -506,13 +510,17 @@ const fmt = {
   _mxn: new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }),
   mxn(n) { return this._mxn.format(Number(n) || 0); },
 
-  /* design money markup: symbol and decimals at 60%, optional explicit sign */
+  /* design money markup: symbol and decimals at 60%, optional explicit sign.
+     Income (clase 'in') renders blurred until tapped. */
   money(n, { signo = false, clase = '', decimales = true } = {}) {
     const v = Number(n) || 0;
     const [ent, dec] = Math.abs(v).toFixed(2).split('.');
     const miles = Number(ent).toLocaleString('es-MX');
     const sig = signo ? (v < 0 ? '−' : '+') : '';
-    return `<span class="money ${clase}">${sig}<span class="c">$</span>${miles}` +
+    const privado = clase.includes('in');
+    return `<span class="money ${clase}${privado ? ' oculto' : ''}"` +
+           (privado ? ' title="Toca para ver" aria-label="Ingreso oculto, toca para ver"' : '') +
+           `>${sig}<span class="c">$</span>${miles}` +
            (decimales ? `<span class="d">.${dec}</span>` : '') + '</span>';
   },
 
@@ -888,7 +896,7 @@ const views = {
           <div style="font-size:15px">${esc(m.comercio || m.nota || 'Sin descripción')}</div>
           <div class="sub b3" style="font-size:12px">${esc([fmt.fecha(m.fecha), m.cuentas?.nombre].filter(Boolean).join(' · '))}</div>
         </div>
-        ${fmt.money(m.monto, { signo: true })}
+        ${fmt.money(m.monto, { signo: true, clase: Number(m.monto) > 0 ? 'in' : '' })}
       </div>`;
   },
 
@@ -903,7 +911,7 @@ const views = {
             <div style="font-size:16px">${esc(m.comercio || m.nota || 'Sin descripción')}</div>
             <div class="b3" style="font-size:12px">${esc([fmt.fecha(m.fecha), m.cuentas?.nombre].filter(Boolean).join(' · '))}</div>
           </div>
-          <span style="font-size:24px">${fmt.money(m.monto, { signo: true })}</span>
+          <span style="font-size:24px">${fmt.money(m.monto, { signo: true, clase: Number(m.monto) > 0 ? 'in' : '' })}</span>
         </div>
         <div class="hr"></div>
         <span class="lbl">Categoría</span>
@@ -1392,6 +1400,15 @@ document.addEventListener('click', e => {
 
 /* --- navigation --- */
 window.addEventListener('hashchange', () => { if (!$('#app').hidden) router.ir(); });
+
+/* --- tap a blurred income amount to reveal it for a few seconds --- */
+document.addEventListener('click', e => {
+  const m = e.target.closest('.money.oculto');
+  if (!m) return;
+  m.classList.toggle('ver');
+  clearTimeout(m._verT);
+  if (m.classList.contains('ver')) m._verT = setTimeout(() => m.classList.remove('ver'), 6000);
+});
 
 /* ============ quick add sheet ============ */
 function abrirHoja(tipo = 'gasto') {
