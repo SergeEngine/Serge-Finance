@@ -130,7 +130,11 @@ end $$;
 -- security_invoker so RLS on the underlying tables applies to the caller.
 -- ============================================================
 
-create or replace view estado
+-- Dropped first: "create or replace view" cannot add columns in the middle
+-- of the list, and re-running this file must stay idempotent.
+drop view if exists estado;
+
+create view estado
 with (security_invoker = true) as
 with hoy as (
   select (now() at time zone 'America/Chihuahua')::date as d
