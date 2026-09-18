@@ -78,15 +78,23 @@ categorizado en Movimientos. Con `Después` debe caer al Inbox.
 Captura automática de cada pago con Apple Pay: monto, comercio y tarjeta
 (cuenta) sin teclear; solo eliges la categoría en el menú que aparece al pagar.
 
-**Primero el shortcut** («Pago capturado»), en Shortcuts → **+**. La entrada
-llega sola como variable **Transaction** (Transacción) cuando lo conectes a la
-automatización (abajo); si al construirlo aún no aparece la variable, deja esos
-campos pendientes y rellénalos después de conectar.
+**Se construye como automatización en blanco** (no como shortcut aparte: un
+shortcut separado recibe la transacción como "Shortcut Input" sin propiedades
+visibles al editarlo — construida inline, la variable **Transaction** sí ofrece
+Amount/Merchant/Card or Pass). Shortcuts → pestaña **Automation** → **+** →
+**Transaction** (aparece como "When Any Card Is Tapped") → marca SOLO las
+tarjetas que quieres capturar → **Run Immediately** (¡no "Run After
+Confirmation"!) → Next → **New Blank Automation**, y arma ahí estas acciones
+(las de token puedes copiarlas de «Gasto»: mantén presionada la acción → Copy →
+Paste):
 
 1. **Calculate**: **Amount** (Monto, de la variable Transaction) **× -1**
 2. **If** (Si) — condición: **Card or Pass** (de Transaction) — **Contains** —
    una palabra que solo aparezca en el nombre de UNA de tus dos tarjetas en
    Wallet (ábrela en Wallet para ver el nombre exacto).
+   - Si "Contains" no aparece: Card or Pass llega como objeto, no texto. Toca
+     la cápsula y cambia **Type** a **Text**, o mete antes una acción **Text**
+     con la cápsula dentro y usa esa como sujeto del If.
    - Dentro del **If**: acción **Text** con el nombre EXACTO de esa cuenta en
      el app, p. ej. `Santander TDC`
    - Dentro del **Otherwise** (Si no): acción **Text** con la otra, p. ej.
@@ -107,11 +115,6 @@ campos pendientes y rellénalos después de conectar.
    - `p_origen` (Text) = `apple_pay`
 8. **Show Notification**
    - Texto: `Guardado: ` + **Amount** + ` · ` + **Merchant**
-
-**Luego la automatización**: Shortcuts → pestaña **Automation** (Automatización)
-→ **+** → **Transaction** (Transacción) → marca SOLO las tarjetas que quieres
-capturar → **Run Immediately** (¡importante!, no "Run After Confirmation") →
-Next → elige el shortcut «Pago capturado».
 
 Pruébalo con una compra real: al pagar aparece el menú de categorías; elige una
 y revisa en el app que el movimiento traiga comercio, categoría y cuenta. Si al
