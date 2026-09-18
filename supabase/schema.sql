@@ -185,6 +185,41 @@ left join disc_gastado dg on dg.user_id = cfg.user_id;
 grant select on estado to authenticated;
 
 -- ============================================================
+-- saldos view (SPEC §5 Cuentas): balance = saldo_inicial + sum(movimientos).
+-- Aggregated server-side so the app never pages through the whole ledger.
+-- ============================================================
+
+create or replace view saldos
+with (security_invoker = true) as
+select c.user_id, c.id, c.nombre, c.tipo,
+       c.saldo_inicial + coalesce(sum(m.monto), 0) as saldo
+from cuentas c
+left join movimientos m on m.cuenta_id = c.id
+where c.activa
+group by c.id
+order by min(c.creado);
+
+grant select on saldos to authenticated;
+
+-- ============================================================
+-- metas_progreso view (SPEC §5 Metas): abonado = sum of tipo='ahorro'
+-- movements linked to the meta. Contributions are stored negative
+-- (money leaves spendable funds), so the sum is negated for display.
+-- ============================================================
+
+create or replace view metas_progreso
+with (security_invoker = true) as
+select mt.user_id, mt.id, mt.nombre, mt.objetivo, mt.fecha_objetivo,
+       coalesce(-sum(m.monto), 0) as abonado
+from metas mt
+left join movimientos m on m.meta_id = mt.id and m.tipo = 'ahorro'
+where mt.activa
+group by mt.id
+order by min(mt.creado);
+
+grant select on metas_progreso to authenticated;
+
+-- ============================================================
 -- agregar_movimiento: insert helper for Shortcuts (SPEC §4).
 -- Takes category and account by NAME ("Súper", "Santander TDC") so the
 -- shortcut never handles UUIDs; unknown/empty category -> null -> inbox.

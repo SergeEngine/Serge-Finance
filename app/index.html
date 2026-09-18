@@ -123,14 +123,14 @@ nav a .badge {
 .mov .cat-emoji { width: 34px; flex: none; display: flex; align-items: center; justify-content: center; color: var(--ink-2); }
 .mov .borrar { background: none; border: 0; color: var(--ink-2); font-size: 1.1rem; padding: 6px; }
 
-/* categorize sheet */
-#sheet[hidden] { display: none; }
-#sheet {
+/* bottom sheets (categorize + generic input) */
+.sheet[hidden] { display: none; }
+.sheet {
   position: fixed; inset: 0; z-index: 20;
   background: rgba(0,0,0,.45);
   display: flex; align-items: flex-end;
 }
-#sheet .panel {
+.sheet .panel {
   background: var(--card); width: 100%;
   border-radius: var(--radius) var(--radius) 0 0;
   padding: var(--pad) var(--pad) calc(var(--pad) + env(safe-area-inset-bottom));
@@ -161,6 +161,29 @@ nav a .badge {
   font-variant-numeric: tabular-nums;
 }
 
+/* ============ resumen screen ============ */
+.res-tot { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; text-align: center; margin-top: 4px; }
+.res-tot .lbl { font-size: .75rem; color: var(--ink-2); }
+.res-tot .val { font-weight: 700; font-variant-numeric: tabular-nums; }
+.barra { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; margin-top: 6px; }
+.barra .fill { height: 100%; background: var(--accent); }
+.barra .fill.over { background: var(--gasto); }
+.pres { display: flex; gap: 10px; align-items: center; padding: 8px 0; }
+.pres-body { flex: 1; min-width: 0; }
+.pres-top { display: flex; justify-content: space-between; gap: 8px; font-size: .92rem; }
+.pres-top .muted { white-space: nowrap; }
+.fila-res { display: flex; align-items: center; gap: 10px; padding: 9px 0; }
+.fila-res .nombre { flex: 1; min-width: 0; }
+.fila-res .monto { font-variant-numeric: tabular-nums; font-weight: 600; }
+.fila-res .monto.neg { color: var(--gasto); }
+.mini {
+  border: 1px solid var(--line); background: var(--bg); color: var(--ink);
+  border-radius: 8px; padding: 5px 10px; font-size: .8rem;
+}
+.btn.sec { background: var(--bg); color: var(--accent); border: 1px solid var(--accent); margin-top: 8px; }
+.meta-fila { padding: 8px 0; }
+.meta-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: .92rem; }
+
 /* ============ wide (Mac) layout ============ */
 @media (min-width: 800px) {
   body { padding-bottom: 0; padding-left: 210px; }
@@ -173,8 +196,8 @@ nav a .badge {
   nav a { flex: none; display: flex; align-items: center; gap: 10px; text-align: left; padding: 12px 20px; font-size: .95rem; }
   nav a .ico { font-size: 1.2rem; }
   main { max-width: 760px; margin: 0 auto; }
-  #sheet { align-items: center; justify-content: center; }
-  #sheet .panel { max-width: 440px; border-radius: var(--radius); }
+  .sheet { align-items: center; justify-content: center; }
+  .sheet .panel { max-width: 440px; border-radius: var(--radius); }
 }
 </style>
 </head>
@@ -224,20 +247,40 @@ nav a .badge {
     <section id="pantalla-movs" hidden>
       <div id="movs-lista"></div>
     </section>
+
+    <section id="pantalla-resumen" hidden>
+      <div class="card" id="res-mes"></div>
+      <div class="card" id="res-pres"></div>
+      <div class="card" id="res-cuentas"></div>
+      <div class="card" id="res-metas"></div>
+    </section>
   </main>
 
   <nav>
     <a href="#/inbox" data-ruta="inbox"><span class="ico" data-icon="inbox"></span>Inbox<span class="badge" id="inbox-badge" hidden></span></a>
     <a href="#/agregar" data-ruta="agregar"><span class="ico" data-icon="plus"></span>Agregar</a>
     <a href="#/movimientos" data-ruta="movs"><span class="ico" data-icon="list"></span>Movimientos</a>
+    <a href="#/resumen" data-ruta="resumen"><span class="ico" data-icon="chart"></span>Resumen</a>
   </nav>
 </div>
 
 <!-- categorize sheet (inbox) -->
-<div id="sheet" hidden>
+<div id="sheet" class="sheet" hidden>
   <div class="panel">
     <h2 id="sheet-titulo"></h2>
     <div class="cat-grid" id="sheet-cats"></div>
+  </div>
+</div>
+
+<!-- generic input sheet (límites, ajustes, abonos, metas) -->
+<div id="sheet-input" class="sheet" hidden>
+  <div class="panel">
+    <h2 id="si-titulo"></h2>
+    <input class="field" id="si-nombre" type="text" placeholder="Nombre" autocomplete="off" hidden>
+    <input class="field" id="si-monto" type="text" inputmode="decimal" placeholder="$0.00" autocomplete="off">
+    <select class="field" id="si-cuenta" hidden></select>
+    <div class="error" id="si-error"></div>
+    <button class="btn" id="si-guardar">Guardar</button>
   </div>
 </div>
 
@@ -269,6 +312,7 @@ const ICONS = {
   inbox:   '<path d="M22 13h-5l-2 3h-6l-2-3H2"/><path d="M5.5 5h13L22 13v4a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-4l3.5-8z"/>',
   plus:    '<path d="M12 5v14M5 12h14"/>',
   list:    '<path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01"/>',
+  chart:   '<path d="M3 3v18h18"/><path d="M7.5 15v-4M12 17V7M16.5 13V9"/>',
   wallet:  '<path d="M3 8V7a2 2 0 0 1 2-2h13"/><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M16.5 12.5h.01"/>',
 };
 function icon(name, size = 22) {
@@ -286,6 +330,15 @@ const fmt = {
   fecha(iso) { // "2026-09-16" -> "mar 16 sep"
     const d = new Date(iso + 'T12:00:00');
     return new Intl.DateTimeFormat('es-MX', { weekday: 'short', day: 'numeric', month: 'short' }).format(d);
+  },
+  mes() { return this.hoy().slice(0, 7); }, // "2026-09"
+  mesAnterior() {
+    const [y, m] = this.mes().split('-').map(Number);
+    return new Date(Date.UTC(y, m - 2, 15)).toISOString().slice(0, 7);
+  },
+  nombreMes(ym) { // "2026-09" -> "septiembre"
+    const [y, m] = ym.split('-').map(Number);
+    return new Intl.DateTimeFormat('es-MX', { month: 'long', timeZone: 'UTC' }).format(new Date(Date.UTC(y, m - 1, 15)));
   },
 };
 
@@ -330,7 +383,7 @@ const api = {
     return this.session.access_token;
   },
 
-  async _rest(method, path, body) {
+  async _rest(method, path, body, headers = {}) {
     const token = await this._token();
     const r = await fetch(`${CONFIG.url}/rest/v1/${path}`, {
       method,
@@ -339,6 +392,7 @@ const api = {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
         Prefer: method === 'GET' ? '' : 'return=representation',
+        ...headers,
       },
       body: body ? JSON.stringify(body) : undefined,
     });
@@ -349,15 +403,32 @@ const api = {
   listCategorias() { return this._rest('GET', 'categorias?select=*&order=orden'); },
   listCuentas()    { return this._rest('GET', 'cuentas?select=*&activa=eq.true&order=creado'); },
   listInbox() {
-    return this._rest('GET', 'movimientos?select=*&categoria_id=is.null&order=creado.desc');
+    // only expenses/income wait for a category; ahorro/ajuste live without one
+    return this._rest('GET', 'movimientos?select=*&categoria_id=is.null&tipo=in.(gasto,ingreso)&order=creado.desc');
   },
   listMovimientos(limit = 100) {
     return this._rest('GET',
-      `movimientos?select=*,categorias(nombre,icono),cuentas(nombre)&categoria_id=not.is.null&order=fecha.desc,creado.desc&limit=${limit}`);
+      `movimientos?select=*,categorias(nombre,icono),cuentas(nombre)&or=(categoria_id.not.is.null,tipo.in.(ahorro,ajuste))&order=fecha.desc,creado.desc&limit=${limit}`);
   },
   addMovimiento(mov)          { return this._rest('POST', 'movimientos', mov); },
   categorizar(id, categoria_id) { return this._rest('PATCH', `movimientos?id=eq.${id}`, { categoria_id }); },
   borrarMovimiento(id)        { return this._rest('DELETE', `movimientos?id=eq.${id}`); },
+
+  listSaldos()        { return this._rest('GET', 'saldos?select=*'); },
+  listMetasProgreso() { return this._rest('GET', 'metas_progreso?select=*'); },
+  listPresupuestos(mes) { return this._rest('GET', `presupuestos?select=*&mes=eq.${mes}`); },
+  addPresupuestos(rows) { return this._rest('POST', 'presupuestos', rows); },
+  upsertPresupuesto(mes, categoria_id, limite) {
+    return this._rest('POST', 'presupuestos?on_conflict=user_id,mes,categoria_id',
+      { mes, categoria_id, limite },
+      { Prefer: 'resolution=merge-duplicates,return=representation' });
+  },
+  addMeta(nombre, objetivo) { return this._rest('POST', 'metas', { nombre, objetivo }); },
+  listMovsMes(mes) {
+    const [y, m] = mes.split('-').map(Number);
+    const fin = new Date(Date.UTC(y, m, 1)).toISOString().slice(0, 10); // first day of next month
+    return this._rest('GET', `movimientos?select=monto,categoria_id,tipo&fecha=gte.${mes}-01&fecha=lt.${fin}`);
+  },
 };
 
 /* ============ store: single in-memory state ============ */
@@ -366,6 +437,11 @@ const store = {
   cuentas: [],
   inbox: [],
   movimientos: [],
+  saldos: [],
+  metasP: [],
+  presupuestos: [],
+  movsMes: [],
+  notaCopiado: null,
   add: { tipo: 'gasto', categoria_id: null }, // quick-add form state
 
   async cargarCatalogos() {
@@ -373,6 +449,21 @@ const store = {
   },
   async cargarInbox() { this.inbox = await api.listInbox(); views.badge(); },
   async cargarMovs()  { this.movimientos = await api.listMovimientos(); },
+  async cargarResumen() {
+    const mes = fmt.mes();
+    [this.saldos, this.metasP, this.presupuestos, this.movsMes] = await Promise.all([
+      api.listSaldos(), api.listMetasProgreso(), api.listPresupuestos(mes), api.listMovsMes(mes),
+    ]);
+    // SPEC §5: first run of a new month copies last month's limits forward
+    if (this.presupuestos.length === 0) {
+      const prev = await api.listPresupuestos(fmt.mesAnterior());
+      if (prev.length) {
+        this.presupuestos = await api.addPresupuestos(
+          prev.map(p => ({ mes, categoria_id: p.categoria_id, limite: p.limite })));
+        this.notaCopiado = `Límites copiados de ${fmt.nombreMes(fmt.mesAnterior())}.`;
+      }
+    }
+  },
   cat(id) { return this.categorias.find(c => c.id === id); },
 };
 
@@ -447,6 +538,66 @@ const views = {
     el.innerHTML = '<div class="lista">' + store.movimientos.map(m => this.filaMov(m, { borrable: true })).join('') + '</div>';
   },
 
+  resumen() {
+    $('#titulo').textContent = 'Resumen';
+    const suma = t => store.movsMes.filter(m => m.tipo === t).reduce((a, m) => a + Number(m.monto), 0);
+    const gastado = -suma('gasto'), ingresado = suma('ingreso'), ahorrado = -suma('ahorro');
+    const nombreMes = fmt.nombreMes(fmt.mes());
+    $('#res-mes').innerHTML = `
+      <h2>${nombreMes[0].toUpperCase() + nombreMes.slice(1)}</h2>
+      <div class="res-tot">
+        <div><div class="lbl">Gastado</div><div class="val" style="color:var(--gasto)">${fmt.mxn(gastado)}</div></div>
+        <div><div class="lbl">Ingresado</div><div class="val" style="color:var(--ingreso)">${fmt.mxn(ingresado)}</div></div>
+        <div><div class="lbl">Ahorrado</div><div class="val">${fmt.mxn(ahorrado)}</div></div>
+      </div>
+      ${store.notaCopiado ? `<p class="muted" style="margin:10px 0 0">${store.notaCopiado}</p>` : ''}`;
+
+    const gastoCat = {};
+    store.movsMes.forEach(m => {
+      if (m.tipo === 'gasto' && m.categoria_id) gastoCat[m.categoria_id] = (gastoCat[m.categoria_id] || 0) - Number(m.monto);
+    });
+    const limites = {};
+    store.presupuestos.forEach(p => { limites[p.categoria_id] = Number(p.limite); });
+    $('#res-pres').innerHTML = '<h2>Presupuestos</h2>'
+      + store.categorias.filter(c => c.nombre !== 'Ingreso').map(c => {
+        const g = gastoCat[c.id] || 0, l = limites[c.id];
+        const pct = l ? Math.min(g / l * 100, 100) : 0;
+        const der = l ? `${fmt.mxn(g)} de ${fmt.mxn(l)}` : (g ? `${fmt.mxn(g)} · sin límite` : 'Sin límite');
+        return `
+          <div class="pres" data-limite="${c.id}">
+            <span class="cat-emoji">${icon(c.icono, 20)}</span>
+            <div class="pres-body">
+              <div class="pres-top"><span>${esc(c.nombre)}</span><span class="muted">${der}</span></div>
+              <div class="barra"><div class="fill${l && g > l ? ' over' : ''}" style="width:${pct}%"></div></div>
+            </div>
+          </div>`;
+      }).join('')
+      + '<p class="muted" style="margin:8px 0 0">Toca una categoría para fijar o cambiar su límite mensual.</p>';
+
+    $('#res-cuentas').innerHTML = '<h2>Cuentas</h2>' + store.saldos.map(s => `
+      <div class="fila-res">
+        <span class="nombre">${esc(s.nombre)}</span>
+        <span class="monto${Number(s.saldo) < 0 ? ' neg' : ''}">${fmt.mxn(s.saldo)}</span>
+        <button type="button" class="mini" data-ajustar="${s.id}">Ajustar</button>
+      </div>`).join('');
+
+    $('#res-metas').innerHTML = '<h2>Metas de ahorro</h2>'
+      + (store.metasP.length === 0 ? '<p class="muted">Sin metas todavía.</p>'
+        : store.metasP.map(m => {
+          const pct = Math.min(Number(m.abonado) / Number(m.objetivo) * 100, 100);
+          return `
+            <div class="meta-fila">
+              <div class="meta-top">
+                <span>${esc(m.nombre)}</span>
+                <span class="muted">${fmt.mxn(m.abonado)} de ${fmt.mxn(m.objetivo)}</span>
+                <button type="button" class="mini" data-abonar="${m.id}">Abonar</button>
+              </div>
+              <div class="barra"><div class="fill" style="width:${pct}%"></div></div>
+            </div>`;
+        }).join(''))
+      + '<button type="button" class="btn sec" id="btn-nueva-meta">+ Nueva meta</button>';
+  },
+
   sheet(mov) {
     $('#sheet-titulo').textContent = `${fmt.mxn(mov.monto)} · ${mov.comercio || mov.nota || fmt.fecha(mov.fecha)}`;
     $('#sheet-cats').innerHTML = store.categorias.map(c => `
@@ -464,6 +615,7 @@ const router = {
     inbox:   { hash: '#/inbox',       pantalla: 'pantalla-inbox',   async entrar() { await store.cargarInbox(); views.inbox(); } },
     agregar: { hash: '#/agregar',     pantalla: 'pantalla-agregar', async entrar() { views.agregar(); } },
     movs:    { hash: '#/movimientos', pantalla: 'pantalla-movs',    async entrar() { await store.cargarMovs(); views.movs(); } },
+    resumen: { hash: '#/resumen',     pantalla: 'pantalla-resumen', async entrar() { await store.cargarResumen(); views.resumen(); } },
   },
   actual: null,
 
@@ -578,6 +730,103 @@ $('#btn-guardar').addEventListener('click', async () => {
     location.hash = '#/movimientos';
   } catch (e) { err.textContent = e.message; }
   finally { btn.disabled = false; }
+});
+
+/* --- resumen: input sheet (límites, ajustes, abonos, metas) --- */
+const sheetInput = {
+  onGuardar: null,
+  abrir({ titulo, conNombre = false, conCuenta = false, monto = '', onGuardar }) {
+    $('#si-titulo').textContent = titulo;
+    $('#si-nombre').hidden = !conNombre;
+    $('#si-nombre').value = '';
+    $('#si-monto').value = monto;
+    $('#si-error').textContent = '';
+    const sel = $('#si-cuenta');
+    sel.hidden = !conCuenta;
+    if (conCuenta) sel.innerHTML = store.cuentas.map(c => `<option value="${c.id}">${esc(c.nombre)}</option>`).join('');
+    this.onGuardar = onGuardar;
+    $('#sheet-input').hidden = false;
+    (conNombre ? $('#si-nombre') : $('#si-monto')).focus();
+  },
+};
+
+$('#sheet-input').addEventListener('click', e => {
+  if (e.target.id === 'sheet-input') $('#sheet-input').hidden = true; // tap outside closes
+});
+
+$('#si-guardar').addEventListener('click', async () => {
+  const err = $('#si-error');
+  err.textContent = '';
+  const monto = parseFloat($('#si-monto').value.replace(/[$,\s]/g, ''));
+  const btn = $('#si-guardar');
+  btn.disabled = true;
+  try {
+    await sheetInput.onGuardar({ monto, nombre: $('#si-nombre').value.trim(), cuenta_id: $('#si-cuenta').value });
+    $('#sheet-input').hidden = true;
+    await store.cargarResumen();
+    views.resumen();
+  } catch (e) { err.textContent = e.message; }
+  finally { btn.disabled = false; }
+});
+
+$('#pantalla-resumen').addEventListener('click', e => {
+  const pres = e.target.closest('[data-limite]');
+  if (pres) {
+    const cat = store.cat(pres.dataset.limite);
+    sheetInput.abrir({
+      titulo: `Límite mensual · ${cat.nombre}`,
+      async onGuardar({ monto }) {
+        if (!(monto > 0)) throw new Error('Escribe un monto válido.');
+        await api.upsertPresupuesto(fmt.mes(), cat.id, monto);
+      },
+    });
+    return;
+  }
+  const aj = e.target.closest('[data-ajustar]');
+  if (aj) {
+    const cu = store.saldos.find(s => s.id === aj.dataset.ajustar);
+    sheetInput.abrir({
+      titulo: `Saldo real de ${cu.nombre}`,
+      async onGuardar({ monto }) {
+        if (isNaN(monto)) throw new Error('Escribe el saldo real.');
+        const dif = Math.round((monto - Number(cu.saldo)) * 100) / 100;
+        if (dif === 0) return;
+        await api.addMovimiento({
+          fecha: fmt.hoy(), monto: dif, cuenta_id: cu.id,
+          nota: 'Ajuste de saldo', origen: 'app', tipo: 'ajuste',
+        });
+      },
+    });
+    return;
+  }
+  const ab = e.target.closest('[data-abonar]');
+  if (ab) {
+    const meta = store.metasP.find(m => m.id === ab.dataset.abonar);
+    const catAhorro = store.categorias.find(c => c.nombre === 'Ahorro');
+    sheetInput.abrir({
+      titulo: `Abonar a ${meta.nombre}`,
+      conCuenta: true,
+      async onGuardar({ monto, cuenta_id }) {
+        if (!(monto > 0)) throw new Error('Escribe un monto válido.');
+        await api.addMovimiento({
+          fecha: fmt.hoy(), monto: -monto, categoria_id: catAhorro?.id ?? null,
+          cuenta_id, meta_id: meta.id, origen: 'app', tipo: 'ahorro',
+        });
+      },
+    });
+    return;
+  }
+  if (e.target.closest('#btn-nueva-meta')) {
+    sheetInput.abrir({
+      titulo: 'Nueva meta',
+      conNombre: true,
+      async onGuardar({ monto, nombre }) {
+        if (!nombre) throw new Error('Ponle un nombre a la meta.');
+        if (!(monto > 0)) throw new Error('Escribe el objetivo en pesos.');
+        await api.addMeta(nombre, monto);
+      },
+    });
+  }
 });
 
 /* --- boot --- */
