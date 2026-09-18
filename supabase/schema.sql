@@ -125,7 +125,8 @@ begin
 end $$;
 
 -- ============================================================
--- estado view (SPEC §6): {candado, semana, discrecional_restante, actualizado}
+-- estado view (SPEC §6): lock state, current/previous ISO week, and the
+-- discretionary limit/spent/remaining for the month.
 -- security_invoker so RLS on the underlying tables applies to the caller.
 -- ============================================================
 
@@ -170,11 +171,15 @@ disc_gastado as (
 select
   cfg.user_id,
   (select semana_actual from semanas) as semana,
+  (select semana_pasada from semanas) as semana_pasada,
+  cfg.umbral_candado,
   case
     when ch.metas_activas is null then 'abierto'  -- no checklist defined yet
     when ch.cumplido / ch.metas_activas >= cfg.umbral_candado then 'abierto'
     else 'cerrado'
   end as candado,
+  coalesce(dl.limite, 0)                           as discrecional_limite,
+  -coalesce(dg.gastado, 0)                         as discrecional_gastado,
   coalesce(dl.limite, 0) + coalesce(dg.gastado, 0) as discrecional_restante,
   now() as actualizado
 from config cfg
@@ -183,6 +188,23 @@ left join disc_limite dl on dl.user_id = cfg.user_id
 left join disc_gastado dg on dg.user_id = cfg.user_id;
 
 grant select on estado to authenticated;
+
+-- ============================================================
+-- gasto_mensual_categoria: spending per category per month, for the
+-- budget history columns on the Mac Presupuestos screen.
+-- ============================================================
+
+create or replace view gasto_mensual_categoria
+with (security_invoker = true) as
+select m.user_id,
+       to_char(m.fecha, 'YYYY-MM') as mes,
+       m.categoria_id,
+       -sum(m.monto) as gastado
+from movimientos m
+where m.tipo = 'gasto' and m.categoria_id is not null
+group by m.user_id, to_char(m.fecha, 'YYYY-MM'), m.categoria_id;
+
+grant select on gasto_mensual_categoria to authenticated;
 
 -- ============================================================
 -- saldos view (SPEC §5 Cuentas): balance = saldo_inicial + sum(movimientos).
