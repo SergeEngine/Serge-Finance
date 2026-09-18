@@ -13,7 +13,8 @@ Personal finance tracker for one user (Serge). Read `SPEC.md` first; it is the s
 - Currency: MXN only in v1. Amounts are `numeric(12,2)`; negative = expense, positive = income.
 - Dates in `America/Chihuahua`. Weeks are ISO weeks.
 - No AI features in v1 (see SPEC §2). Do not add the Claude API yet.
-- Keep `index.html` a single file. Prefer small vanilla helpers over dependencies; if a library is unavoidable, load it from a CDN with a pinned version.
+- Keep `index.html` a single file. Prefer small vanilla helpers over dependencies; if a library is unavoidable, load it from a CDN with a pinned version. The only external dependency today is Google Fonts (Playfair Display + IBM Plex Sans).
+- Visual changes follow the design system in SPEC §3.2 (tokens are CSS custom properties at the top of `index.html`). The mockups live in the iCloud archive as `Serge Finance — UI.html`; never copy that file into the repo.
 - Every table has `user_id` with RLS `user_id = auth.uid()`. Every new table gets its policy in the same change.
 - Mobile first: every screen must work at 390px wide before it works on the Mac.
 

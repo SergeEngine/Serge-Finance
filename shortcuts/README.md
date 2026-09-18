@@ -124,10 +124,39 @@ luego con «Gasto».
 
 ---
 
+## Shortcut 3: «¿Puedo gastar?»
+
+Pregunta rápida desde el teléfono: contesta en una notificación si el candado
+está abierto y cuánto queda de gasto discrecional este mes. Ponlo en el botón de
+Acción o como widget.
+
+En Shortcuts → **+** → nombre «¿Puedo gastar?»:
+
+1. **Get Contents of URL** — el token: idéntico al paso 6 de «Gasto»
+   (cópialo de ahí: mantén presionada la acción → Copy → Paste).
+2. **Get Dictionary Value** — `access_token` del paso 1.
+3. **Get Contents of URL** — el estado
+   - URL: `https://qmftfhvixszzqtfmxsgv.supabase.co/rest/v1/estado?select=*`
+   - Method: **GET**
+   - Headers: `apikey` = APIKEY · `Authorization` = `Bearer ` + la cápsula del paso 2
+   - (sin Request Body)
+4. **Get Dictionary Value** — `candado` en **Contents of URL** (paso 3).
+   La respuesta es una lista de un elemento; si Shortcuts se queja, agrega antes
+   un **Get Item from List** → First Item.
+5. **Get Dictionary Value** — `discrecional_restante`, misma fuente.
+6. **Show Notification**
+   - Texto: `Candado ` + cápsula del paso 4 + ` · quedan $` + cápsula del paso 5
+
+Pruébalo: debe decir «Candado abierto · quedan $5,170» (o cerrado). El candado se
+calcula con la lista semanal que defines en el app, en Más → Candado.
+
+---
+
 ## Notas
 
 - Si el token falla (contraseña mal escrita, sin internet), el movimiento no se
   guarda y no hay aviso claro: si no llega la notificación, captúralo con «Gasto».
 - La fecha no se envía: Supabase pone la fecha de hoy (zona America/Chihuahua)
   automáticamente.
-- «¿Puedo gastar?» se construye en el paso 5 de SPEC §8, cuando exista el candado.
+- El candado nunca bloquea nada: informa. Si está cerrado, el app marca los
+  gastos discrecionales con una línea en oxblood y ya.
