@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#0B1F17">
-<title>Serge Finance</title>
+<title>Finance</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500&family=Playfair+Display:ital,wght@0,400;0,500;1,400&display=swap">
@@ -351,7 +351,7 @@ nav.tabs .badge {
 
 <!-- ============ auth ============ -->
 <section id="pantalla-auth" hidden>
-  <div class="serif marca">Serge <em>Finance</em></div>
+  <div class="serif marca">Finance</div>
   <span class="lbl">Entrar</span>
   <form id="form-login">
     <label class="campo"><span class="lbl">Correo</span>
@@ -367,7 +367,7 @@ nav.tabs .badge {
 <div id="app" hidden>
   <aside id="lateral">
     <div class="marca">
-      <div class="serif">Serge <em>Finance</em></div>
+      <div class="serif">Finance</div>
       <div class="hr"></div>
     </div>
     <nav class="secciones" aria-label="Secciones">
@@ -834,7 +834,7 @@ const views = {
     $('#pantalla-hoy').innerHTML = `
       <div class="enc">
         <span class="lbl">${esc(fmt.fechaLarga(fmt.hoyDate()))}</span>
-        <span class="serif b2" style="font-size:15px">Serge <em>Finance</em></span>
+        <span class="serif b2" style="font-size:15px">Finance</span>
       </div>
 
       <div class="hoy-estado">
@@ -999,7 +999,7 @@ const views = {
         <button type="button" class="menu-fila" id="btn-csv">${icon('descargar')}<span>Exportar CSV</span></button>
         <button type="button" class="menu-fila" data-salir>${icon('atras')}<span>Salir</span></button>
       </div>
-      <p class="b3" style="font-size:12px;margin:0">Serge Finance · MXN · America/Chihuahua</p>`;
+      <p class="b3" style="font-size:12px;margin:0">Finance · MXN · America/Chihuahua</p>`;
   },
 
   /* ---- Candado ---- */
