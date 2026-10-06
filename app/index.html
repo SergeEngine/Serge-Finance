@@ -416,6 +416,7 @@ nav.tabs .badge {
       <button type="button" data-tipo="gasto">Gasto</button>
       <button type="button" data-tipo="ingreso">Ingreso</button>
       <button type="button" data-tipo="ahorro">Meta</button>
+      <button type="button" data-tipo="traspaso">Traspaso</button>
     </div>
     <div>
       <input class="monto-grande" id="hoja-monto" type="text" inputmode="decimal" placeholder="$0.00" autocomplete="off">
@@ -428,8 +429,12 @@ nav.tabs .badge {
       <div class="chip-grid" id="hoja-cats"></div>
     </div>
     <div style="display:flex;flex-direction:column;gap:10px">
-      <span class="lbl">Cuenta</span>
+      <span class="lbl" id="hoja-lbl-cuenta">Cuenta</span>
       <div class="chip-row" id="hoja-cuentas"></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px" id="hoja-destino-bloque" hidden>
+      <span class="lbl">A la cuenta</span>
+      <div class="chip-row" id="hoja-destinos"></div>
     </div>
     <div class="err" id="hoja-error"></div>
     <button class="btn btn-p btn-w" id="hoja-guardar">Registrar</button>
@@ -723,7 +728,7 @@ const store = {
   inboxAbierto: null,          // id of the expanded inbox card
   filtros: { mes: '', cuenta_id: '', categoria_id: '', q: '' },
   presEdit: {},                // pending budget edits {categoria_id: limite}
-  add: { tipo: 'gasto', categoria_id: null, cuenta_id: null, meta_id: null },
+  add: { tipo: 'gasto', categoria_id: null, cuenta_id: null, meta_id: null, destino_id: null },
 
   async cargarCatalogos() {
     [this.categorias, this.cuentas] = await Promise.all([api.listCategorias(), api.listCuentas()]);
@@ -1328,28 +1333,47 @@ const views = {
   /* ---- quick add sheet ---- */
   hoja() {
     const t = store.add.tipo;
+    const traspaso = t === 'traspaso';
     document.querySelectorAll('.tabs-hoja button').forEach(b => b.classList.toggle('on', b.dataset.tipo === t));
     $('#hoja-lbl-cat').textContent = t === 'ahorro' ? 'Meta' : 'Categoría';
+    $('#hoja-cats').parentElement.hidden = traspaso;
     $('#hoja-nota').parentElement.hidden = t === 'ahorro';
+    $('#hoja-lbl-cuenta').textContent = traspaso ? 'De la cuenta' : 'Cuenta';
+    $('#hoja-destino-bloque').hidden = !traspaso;
+    $('#hoja-guardar').textContent = traspaso ? 'Traspasar' : 'Registrar';
 
-    let opciones;
-    if (t === 'ahorro') {
-      opciones = store.metasP.map(m => ({ id: m.id, nombre: m.nombre, sel: store.add.meta_id === m.id }));
-      if (!opciones.some(o => o.sel) && opciones.length) { store.add.meta_id = opciones[0].id; opciones[0].sel = true; }
-    } else {
-      const cats = t === 'ingreso'
-        ? store.categorias.filter(c => c.nombre === 'Ingreso')
-        : store.catsGasto();
-      if (!cats.some(c => c.id === store.add.categoria_id)) store.add.categoria_id = cats[0]?.id ?? null;
-      opciones = cats.map(c => ({ id: c.id, nombre: c.nombre, disc: c.discrecional, sel: c.id === store.add.categoria_id }));
+    if (!traspaso) {
+      let opciones;
+      if (t === 'ahorro') {
+        opciones = store.metasP.map(m => ({ id: m.id, nombre: m.nombre, sel: store.add.meta_id === m.id }));
+        if (!opciones.some(o => o.sel) && opciones.length) { store.add.meta_id = opciones[0].id; opciones[0].sel = true; }
+      } else {
+        const cats = t === 'ingreso'
+          ? store.categorias.filter(c => c.nombre === 'Ingreso')
+          : store.catsGasto();
+        if (!cats.some(c => c.id === store.add.categoria_id)) store.add.categoria_id = cats[0]?.id ?? null;
+        opciones = cats.map(c => ({ id: c.id, nombre: c.nombre, disc: c.discrecional, sel: c.id === store.add.categoria_id }));
+      }
+      $('#hoja-cats').innerHTML = opciones.length
+        ? opciones.map(o => `<button type="button" class="chip ${o.sel ? 'on' : ''}" data-op="${o.id}">${esc(o.nombre)}${o.disc ? DISC : ''}</button>`).join('')
+        : '<p class="b3" style="grid-column:1/-1;margin:0;font-size:13px">Crea una meta primero en Mes.</p>';
     }
-    $('#hoja-cats').innerHTML = opciones.length
-      ? opciones.map(o => `<button type="button" class="chip ${o.sel ? 'on' : ''}" data-op="${o.id}">${esc(o.nombre)}${o.disc ? DISC : ''}</button>`).join('')
-      : '<p class="b3" style="grid-column:1/-1;margin:0;font-size:13px">Crea una meta primero en Mes.</p>';
 
     $('#hoja-cuentas').innerHTML = store.cuentas.map(c => `
       <button type="button" class="chip sm ${c.id === store.add.cuenta_id ? 'on' : ''}" data-cuenta="${c.id}">${esc(c.nombre)}</button>`).join('');
-    $('#hoja-pie').textContent = `MXN · ${store.cuenta(store.add.cuenta_id)?.nombre ?? ''}`;
+
+    if (traspaso) {
+      // the destination cannot be the origin
+      if (store.add.destino_id === store.add.cuenta_id) store.add.destino_id = null;
+      const otras = store.cuentas.filter(c => c.id !== store.add.cuenta_id);
+      if (!otras.some(c => c.id === store.add.destino_id)) store.add.destino_id = otras[0]?.id ?? null;
+      $('#hoja-destinos').innerHTML = otras.map(c => `
+        <button type="button" class="chip sm ${c.id === store.add.destino_id ? 'on' : ''}" data-destino="${c.id}">${esc(c.nombre)}</button>`).join('');
+      $('#hoja-pie').textContent =
+        `${store.cuenta(store.add.cuenta_id)?.nombre ?? ''} → ${store.cuenta(store.add.destino_id)?.nombre ?? ''}`;
+    } else {
+      $('#hoja-pie').textContent = `MXN · ${store.cuenta(store.add.cuenta_id)?.nombre ?? ''}`;
+    }
   },
 
   toast(texto, accion) {
@@ -1463,7 +1487,9 @@ $('#hoja').addEventListener('click', e => {
     return;
   }
   const cu = e.target.closest('[data-cuenta]');
-  if (cu) { store.add.cuenta_id = cu.dataset.cuenta; views.hoja(); }
+  if (cu) { store.add.cuenta_id = cu.dataset.cuenta; views.hoja(); return; }
+  const de = e.target.closest('[data-destino]');
+  if (de) { store.add.destino_id = de.dataset.destino; views.hoja(); }
 });
 
 $('#hoja-guardar').addEventListener('click', async () => {
@@ -1473,9 +1499,24 @@ $('#hoja-guardar').addEventListener('click', async () => {
   if (!(bruto > 0)) { err.textContent = 'Escribe un monto válido.'; return; }
   const t = store.add.tipo;
   if (t === 'ahorro' && !store.add.meta_id) { err.textContent = 'Crea una meta primero.'; return; }
+  if (t === 'traspaso' && !store.add.destino_id) { err.textContent = 'Elige la cuenta destino.'; return; }
 
   const btn = $('#hoja-guardar');
   btn.disabled = true;
+
+  if (t === 'traspaso') {
+    try {
+      await api.addTraspaso(store.add.cuenta_id, store.add.destino_id, bruto,
+        $('#hoja-nota').value.trim() ||
+        `${store.cuenta(store.add.cuenta_id)?.nombre} → ${store.cuenta(store.add.destino_id)?.nombre}`);
+      $('#hoja').hidden = true;
+      views.toast(`Traspasado ${fmt.mxn(bruto)}`);
+      await router.ir();
+    } catch (e) { err.textContent = e.message; }
+    finally { btn.disabled = false; }
+    return;
+  }
+
   try {
     const mov = {
       fecha: fmt.hoy(),
