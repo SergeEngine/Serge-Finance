@@ -51,10 +51,17 @@ create table if not exists movimientos (
   origen       text not null default 'app'
                  check (origen in ('apple_pay', 'sms', 'manual', 'app', 'recurrente')),
   tipo         text not null default 'gasto'
-                 check (tipo in ('gasto', 'ingreso', 'ahorro', 'ajuste')),
+                 check (tipo in ('gasto', 'ingreso', 'ahorro', 'ajuste', 'traspaso')),
   meta_id      uuid references metas (id),
+  grupo_id     uuid,                            -- links the two legs of a transfer
   creado       timestamptz not null default now()
 );
+
+-- Re-runnable upgrades for a database created before these columns existed.
+alter table movimientos drop constraint if exists movimientos_tipo_check;
+alter table movimientos add constraint movimientos_tipo_check
+  check (tipo in ('gasto', 'ingreso', 'ahorro', 'ajuste', 'traspaso'));
+alter table movimientos add column if not exists grupo_id uuid;
 
 create table if not exists presupuestos (
   id           uuid primary key default gen_random_uuid(),
@@ -209,6 +216,36 @@ where m.tipo = 'gasto' and m.categoria_id is not null
 group by m.user_id, to_char(m.fecha, 'YYYY-MM'), m.categoria_id;
 
 grant select on gasto_mensual_categoria to authenticated;
+
+-- ============================================================
+-- flujo_mensual / flujo_semanal: income and spending per period, for the
+-- Dash trend. Transfers never show up here: the filters only count gasto,
+-- ingreso and ahorro, so moving money between accounts is invisible to them.
+-- ============================================================
+
+create or replace view flujo_mensual
+with (security_invoker = true) as
+select user_id,
+       to_char(fecha, 'YYYY-MM') as mes,
+       coalesce(-sum(monto) filter (where tipo = 'gasto'), 0)   as gastos,
+       coalesce( sum(monto) filter (where tipo = 'ingreso'), 0) as ingresos,
+       coalesce(-sum(monto) filter (where tipo = 'ahorro'), 0)  as ahorro
+from movimientos
+group by user_id, to_char(fecha, 'YYYY-MM');
+
+grant select on flujo_mensual to authenticated;
+
+create or replace view flujo_semanal
+with (security_invoker = true) as
+select user_id,
+       to_char(fecha, 'IYYY-"W"IW') as semana,
+       coalesce(-sum(monto) filter (where tipo = 'gasto'), 0)   as gastos,
+       coalesce( sum(monto) filter (where tipo = 'ingreso'), 0) as ingresos,
+       coalesce(-sum(monto) filter (where tipo = 'ahorro'), 0)  as ahorro
+from movimientos
+group by user_id, to_char(fecha, 'IYYY-"W"IW');
+
+grant select on flujo_semanal to authenticated;
 
 -- ============================================================
 -- saldos view (SPEC §5 Cuentas): balance = saldo_inicial + sum(movimientos).
