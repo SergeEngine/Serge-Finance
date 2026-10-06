@@ -26,6 +26,10 @@
   --sage: #6F8F6A; --sage-ink: #8FA98A;
   --ox: #7A2E2E; --ox-ink: #C47A72;
   --scrim: rgba(4,12,9,.72);
+  /* data palette — muted earth tones that hold up on both themes.
+     Assigned by the category's fixed `orden`, so a colour never moves. */
+  --c1: #7E9A5E; --c2: #B5724F; --c3: #C9A86A; --c4: #6F8F6A;
+  --c5: #A4553E; --c6: #5C7D7A; --c7: #7D5A6E; --c8: #9A8C52;
   /* type */
   --f-serif: 'Playfair Display', Georgia, 'Times New Roman', serif;
   --f-sans: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
@@ -95,6 +99,40 @@ h1, h2, h3 { margin: 0; font-weight: 400; }
 .bar.sage i { background: var(--sage); }
 
 .card { background: var(--bg-1); border: 1px solid var(--hair); border-radius: var(--r-2); }
+
+/* ---- donut: distribution of the month's spending ---- */
+.dona-fila { display: flex; gap: var(--s-6); align-items: center; flex-wrap: wrap; }
+.dona-wrap { position: relative; width: 176px; height: 176px; flex: none; }
+.dona-wrap svg { display: block; width: 100%; height: 100%; }
+.dona-wrap .seg { cursor: pointer; transition: stroke-width var(--dur) var(--ease), opacity var(--dur) var(--ease); }
+.dona-wrap.enfoque .seg { opacity: .3; }
+.dona-wrap.enfoque .seg.act { opacity: 1; stroke-width: 5.4; }
+.dona-centro {
+  position: absolute; inset: 0; pointer-events: none;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; text-align: center;
+}
+.dona-centro .money { font-size: 22px; }
+.dona-centro .que { font-size: 11px; color: var(--ink-3); max-width: 110px; }
+.leyenda { flex: 1; min-width: 190px; display: flex; flex-direction: column; }
+.leyenda button {
+  display: flex; align-items: center; gap: var(--s-2); width: 100%;
+  background: none; border: 0; border-bottom: 1px solid var(--hair);
+  padding: 7px 0; text-align: left; font-size: 13px; color: var(--ink-2);
+}
+.leyenda button.act { color: var(--ink-1); }
+.leyenda .sw { width: 8px; height: 8px; border-radius: 2px; flex: none; }
+.leyenda .nom { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.leyenda .pct { color: var(--ink-3); font-size: 12px; min-width: 34px; text-align: right; }
+
+/* ---- trend bars ---- */
+.tend-graf { display: flex; align-items: flex-end; gap: 6px; height: 124px; border-bottom: 1px solid var(--hair); }
+.tend-graf > button { flex: 1; height: 100%; display: flex; align-items: flex-end; background: none; border: 0; padding: 0; }
+.tend-graf i { width: 100%; display: block; min-height: 1px; background: var(--ink-1); transition: height var(--dur) var(--ease); }
+.tend-graf > button.neg i { background: var(--ox); }
+.tend-graf > button.act i { background: var(--sage); }
+.tend-eje { display: flex; gap: 6px; padding-top: 6px; }
+.tend-eje span { flex: 1; text-align: center; font-size: 9px; color: var(--ink-3); white-space: nowrap; }
+.toggles { display: flex; gap: var(--s-2); flex-wrap: wrap; }
 
 /* buttons */
 .btn {
@@ -371,7 +409,7 @@ nav.tabs .badge {
       <div class="hr"></div>
     </div>
     <nav class="secciones" aria-label="Secciones">
-      <a href="#/resumen" data-ruta="resumen"><span data-icon="grafica"></span>Resumen</a>
+      <a href="#/dash" data-ruta="dash"><span data-icon="grafica"></span>Dash</a>
       <a href="#/movimientos" data-ruta="movimientos"><span data-icon="lista"></span>Movimientos</a>
       <a href="#/presupuestos" data-ruta="presupuestos"><span data-icon="sobres"></span>Presupuestos</a>
       <a href="#/inbox" data-ruta="inbox"><span data-icon="inbox"></span>Inbox</a>
@@ -570,6 +608,15 @@ const fmt = {
     d.setUTCDate(d.getUTCDate() - 7 * n);
     return this.semanaISO(d);
   },
+  /* "2026-W38" -> "2026-09-14" (its Monday). Week 1 is the one holding Jan 4. */
+  lunesDeSemana(iso) {
+    const [y, w] = iso.split('-W').map(Number);
+    const jan4 = new Date(Date.UTC(y, 0, 4));
+    const lunes1 = new Date(jan4);
+    lunes1.setUTCDate(jan4.getUTCDate() - ((jan4.getUTCDay() + 6) % 7));
+    lunes1.setUTCDate(lunes1.getUTCDate() + (w - 1) * 7);
+    return lunes1.toISOString().slice(0, 10);
+  },
   rangoSemana(d = this.hoyDate()) {
     const l = this.lunesDe(d), dom = new Date(l);
     dom.setUTCDate(dom.getUTCDate() + 6);
@@ -723,6 +770,8 @@ const store = {
   categorias: [], cuentas: [],
   inbox: [], movimientos: [], recientes: [], movsMes: [],
   saldos: [], metasP: [], presupuestos: [], gastoMensual: [],
+  flujoMes: [], flujoSemana: [], sinCuenta: [],
+  dash: { mes: null, periodo: 'semana', serie: 'gastos', categoria: null },
   estado: null, semanaMetas: [], semanaRegistro: [],
   notaCopiado: null,
   inboxAbierto: null,          // id of the expanded inbox card
@@ -744,9 +793,12 @@ const store = {
   async cargarMovs() { this.movimientos = await api.listMovimientos(this.filtros); },
   async cargarMes() {
     const mes = fmt.mes();
-    [this.estado, this.saldos, this.metasP, this.presupuestos, this.movsMes] = await Promise.all([
+    if (!this.dash.mes) this.dash.mes = mes;
+    [this.estado, this.saldos, this.metasP, this.presupuestos, this.movsMes,
+     this.gastoMensual, this.sinCuenta] = await Promise.all([
       api.getEstado(), api.listSaldos(), api.listMetasProgreso(),
       api.listPresupuestos(mes), api.listMovsMes(mes),
+      api.listGastoMensual(), api.listSinCuenta(),
     ]);
     // SPEC §5: first run of a new month copies last month's limits forward
     if (this.presupuestos.length === 0) {
@@ -759,6 +811,12 @@ const store = {
     }
     views.lateralEstado();
   },
+  async cargarDash() {
+    await this.cargarMes();
+    [this.flujoMes, this.flujoSemana] = await Promise.all([
+      api.listFlujoMensual(), api.listFlujoSemanal(),
+    ]);
+  },
   async cargarPresupuestos() {
     this.presEdit = {};
     [this.presupuestos, this.gastoMensual] = await Promise.all([
@@ -770,6 +828,52 @@ const store = {
       api.getEstado(), api.listSemanaMetas(), api.listSemanaRegistro(),
     ]);
     views.lateralEstado();
+  },
+
+  /* a category keeps its colour forever: it comes from its fixed `orden` */
+  colorCat(cat) { return `var(--c${((Number(cat?.orden ?? 1) - 1) % 8) + 1})`; },
+
+  /* spending of one month per category: top 7 plus "Otros" */
+  distribucion(mes) {
+    const filas = this.gastoMensual
+      .filter(g => g.mes === mes && Number(g.gastado) > 0)
+      .map(g => {
+        const c = this.cat(g.categoria_id);
+        return { id: g.categoria_id, nombre: c?.nombre ?? 'Sin categoría', valor: Number(g.gastado), color: this.colorCat(c) };
+      })
+      .sort((a, b) => b.valor - a.valor);
+    if (filas.length <= 8) return filas;
+    const resto = filas.slice(7);
+    return [...filas.slice(0, 7), {
+      id: 'otros', nombre: `Otros (${resto.length})`,
+      valor: resto.reduce((a, f) => a + f.valor, 0), color: 'var(--ink-3)',
+    }];
+  },
+
+  /* the trend series, following the Dash toggles */
+  serieTendencia() {
+    const { periodo, serie, categoria } = this.dash;
+    const valor = f => serie === 'neto' ? Number(f.ingresos) - Number(f.gastos) : Number(f[serie]);
+
+    if (periodo === 'mes') {
+      const meses = [];
+      let m = fmt.mes();
+      for (let i = 0; i < 6; i++) { meses.unshift(m); m = fmt.mesAnterior(m); }
+      return meses.map(mes => {
+        const v = categoria
+          ? Number(this.gastoMensual.find(g => g.mes === mes && g.categoria_id === categoria)?.gastado ?? 0)
+          : valor(this.flujoMes.find(f => f.mes === mes) ?? { gastos: 0, ingresos: 0 });
+        return { clave: mes, etiqueta: fmt.nombreMes(mes).slice(0, 3), valor: v };
+      });
+    }
+
+    const semanas = [];
+    for (let i = 7; i >= 0; i--) semanas.push(fmt.semanaHace(i));
+    return semanas.map(s => ({
+      clave: s,
+      etiqueta: fmt.fecha(fmt.lunesDeSemana(s)),
+      valor: valor(this.flujoSemana.find(f => f.semana === s) ?? { gastos: 0, ingresos: 0 }),
+    }));
   },
 
   cat(id) { return this.categorias.find(c => c.id === id); },
@@ -795,6 +899,63 @@ const esc = s => (s ?? '').toString().replace(/[&<>"']/g, c => ({ '&':'&amp;','<
 const esMac = () => window.matchMedia('(min-width: 860px)').matches;
 const barra = (pct, clase = '') =>
   `<div class="bar ${clase}"><i style="width:${Math.max(0, Math.min(pct, 100))}%"></i></div>`;
+
+/* Donut, hand-drawn in SVG. The radius makes the circumference exactly 100,
+   so every stroke-dasharray value is already a percentage.
+   datos: [{ id, nombre, valor, color }] sorted desc. */
+function dona(datos, { activo = null } = {}) {
+  const total = datos.reduce((a, d) => a + d.valor, 0);
+  if (!total) return '<p class="b3" style="margin:0;font-size:13px">Sin gastos registrados en este mes.</p>';
+  let acumulado = 0;
+  const segmentos = datos.map(d => {
+    const pct = d.valor / total * 100;
+    const s = `<circle class="seg${activo === d.id ? ' act' : ''}" data-seg="${d.id}"
+      cx="21" cy="21" r="15.9155" fill="none" stroke="${d.color}" stroke-width="4.2"
+      stroke-dasharray="${pct.toFixed(3)} ${(100 - pct).toFixed(3)}"
+      stroke-dashoffset="${(25 - acumulado).toFixed(3)}"><title>${esc(d.nombre)}</title></circle>`;
+    acumulado += pct;
+    return s;
+  }).join('');
+
+  const foco = datos.find(d => d.id === activo);
+  const centro = foco
+    ? `${fmt.money(foco.valor)}<span class="que">${esc(foco.nombre)} · ${Math.round(foco.valor / total * 100)} %</span>`
+    : `${fmt.money(total)}<span class="que">gastado</span>`;
+
+  return `
+    <div class="dona-fila">
+      <div class="dona-wrap${activo ? ' enfoque' : ''}">
+        <svg viewBox="0 0 42 42" role="img" aria-label="Distribución del gasto">
+          <circle cx="21" cy="21" r="15.9155" fill="none" stroke="var(--hair)" stroke-width="4.2"></circle>
+          ${segmentos}
+        </svg>
+        <div class="dona-centro">${centro}</div>
+      </div>
+      <div class="leyenda">
+        ${datos.map(d => `
+          <button type="button" data-seg="${d.id}" class="${activo === d.id ? 'act' : ''}">
+            <span class="sw" style="background:${d.color}"></span>
+            <span class="nom">${esc(d.nombre)}</span>
+            <span class="tn">${fmt.mxn(d.valor).replace(/\.00$/, '')}</span>
+            <span class="pct tn">${Math.round(d.valor / total * 100)} %</span>
+          </button>`).join('')}
+      </div>
+    </div>`;
+}
+
+/* Vertical bars. serie: [{ clave, etiqueta, valor }] */
+function tendencia(serie, { activo = null } = {}) {
+  if (!serie.some(s => s.valor)) return '<p class="b3" style="margin:0;font-size:13px">Todavía no hay suficiente historia.</p>';
+  const max = Math.max(...serie.map(s => Math.abs(s.valor)), 1);
+  return `
+    <div class="tend-graf">${serie.map(s => `
+      <button type="button" data-periodo="${s.clave}"
+        class="${s.valor < 0 ? 'neg' : ''}${activo === s.clave ? ' act' : ''}"
+        title="${esc(s.etiqueta)}: ${fmt.mxn(s.valor)}">
+        <i style="height:${Math.abs(s.valor) / max * 100}%"></i>
+      </button>`).join('')}</div>
+    <div class="tend-eje">${serie.map(s => `<span>${esc(s.etiqueta)}</span>`).join('')}</div>`;
+}
 
 /* ============ views: one render per screen; they only draw the store ============ */
 const views = {
@@ -970,6 +1131,13 @@ const views = {
       </div>
       ${store.notaCopiado ? `<p class="b3" style="margin:0;font-size:12px">${esc(store.notaCopiado)}</p>` : ''}
 
+      ${this.balance({ compacto: true })}
+
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <span class="lbl">Distribución del gasto</span>
+        ${dona(store.distribucion(fmt.mes()))}
+      </div>
+
       <div style="display:flex;flex-direction:column;gap:2px">
         <div class="enc" style="padding-bottom:6px">
           <span class="lbl">Presupuestos</span>
@@ -1024,6 +1192,7 @@ const views = {
     $('#pantalla-mas').innerHTML = `
       <div class="enc"><h1 class="serif">Más</h1></div>
       <div>
+        <a class="menu-fila" href="#/dash">${icon('grafica')}<span>Dash</span>${icon('chevron')}</a>
         <a class="menu-fila" href="#/candado">${icon('candado-abierto')}<span>Candado</span>${icon('chevron')}</a>
         <a class="menu-fila" href="#/movimientos">${icon('lista')}<span>Movimientos</span>${icon('chevron')}</a>
         <a class="menu-fila" href="#/presupuestos">${icon('sobres')}<span>Presupuestos</span>${icon('chevron')}</a>
@@ -1119,24 +1288,59 @@ const views = {
       </div>`;
   },
 
-  /* ---- Resumen (Mac) ---- */
-  resumen() {
+  /* ---- Balance: net worth, every account, and what is still unassigned ---- */
+  balance({ compacto = false } = {}) {
+    const neto = store.saldos.reduce((a, s) => a + Number(s.saldo), 0);
+    const sinAsignar = store.sinCuenta.reduce((a, m) => a + Number(m.monto), 0);
+    return `
+      <div style="display:flex;flex-direction:column;gap:${compacto ? 10 : 14}px">
+        <span class="lbl">Balance · patrimonio neto</span>
+        <span style="font-size:${compacto ? 34 : 44}px">${fmt.money(neto, { clase: neto < 0 ? 'ox' : '' })}</span>
+        <div style="display:flex;flex-direction:column">
+          ${store.saldos.map(s => {
+            const v = Number(s.saldo);
+            const deuda = s.tipo === 'credito' && v < 0;
+            return `
+            <div class="saldo-fila" data-ajustar="${s.id}">
+              <span>${esc(s.nombre)}${deuda ? ' <span class="b3">· por pagar</span>' : ''}</span>
+              ${fmt.money(v, { signo: v < 0, clase: v < 0 ? 'ox' : '' })}
+            </div>`;
+          }).join('')}
+          ${store.sinCuenta.length ? `
+            <a class="saldo-fila" href="#/inbox" style="color:var(--ox-ink)">
+              <span>Sin asignar <span class="b3">· ${store.sinCuenta.length} movimiento${store.sinCuenta.length === 1 ? '' : 's'}</span></span>
+              ${fmt.money(sinAsignar, { signo: true, clase: 'ox' })}
+            </a>` : ''}
+        </div>
+        <p class="b3" style="margin:0;font-size:12px">${store.sinCuenta.length
+          ? 'Esos movimientos no entran en el balance hasta que les asignes cuenta.'
+          : 'Toca una cuenta para ajustar su saldo real.'}</p>
+      </div>`;
+  },
+
+  /* ---- Dash (Mac home): balance, distribution, trend ---- */
+  dash() {
     const e = store.estado || {};
     const suma = t => store.movsMes.filter(m => m.tipo === t).reduce((a, m) => a + Number(m.monto), 0);
     const gastos = -suma('gasto'), ingresos = suma('ingreso'), ahorro = -suma('ahorro');
     const abierto = e.candado !== 'cerrado';
+    const d = store.dash;
 
-    const gastoCat = {};
-    store.movsMes.forEach(m => {
-      if (m.tipo === 'gasto' && m.categoria_id) gastoCat[m.categoria_id] = (gastoCat[m.categoria_id] || 0) - Number(m.monto);
-    });
-    const limites = {};
-    store.presupuestos.forEach(p => { limites[p.categoria_id] = Number(p.limite); });
+    // month picker for the donut: every month that has spending, newest first
+    const mesesConGasto = [...new Set([fmt.mes(), ...store.gastoMensual.map(g => g.mes)])].sort().reverse();
+    const datos = store.distribucion(d.mes);
+
+    // pace: what should have been spent by today if the month were even
+    const dia = Number(fmt.hoy().slice(8));
+    const diasMes = dia + fmt.diasRestantesMes();
+    const limiteTotal = store.presupuestos.reduce((a, p) => a + Number(p.limite), 0);
+    const esperado = limiteTotal * dia / diasMes;
+    const difRitmo = gastos - esperado;
 
     $('#pantalla-resumen').innerHTML = `
       <div class="enc" style="align-items:flex-end">
         <div style="display:flex;flex-direction:column;gap:8px">
-          <span class="lbl">Resumen</span>
+          <span class="lbl">Dash</span>
           <h1 class="serif">${esc(fmt.nombreMes(fmt.mes()).replace(/^./, c => c.toUpperCase()))} ${fmt.mes().slice(0, 4)}</h1>
         </div>
         <div style="display:flex;align-items:center;gap:12px;padding-bottom:6px">
@@ -1146,9 +1350,11 @@ const views = {
       </div>
       ${store.notaCopiado ? `<p class="b3" style="margin:0;font-size:12px">${esc(store.notaCopiado)}</p>` : ''}
 
+      ${this.balance()}
+
       <div class="totales">
         <div><span class="lbl">Ingresos</span>${fmt.money(ingresos, { signo: true, clase: 'in' })}
-          <span class="tn b3" style="font-size:12px">${fmt.nombreMes(fmt.mes())}</span></div>
+          <span class="tn b3" style="font-size:12px">${esc(fmt.nombreMes(fmt.mes()))}</span></div>
         <div><span class="lbl">Gastos</span>${fmt.money(gastos)}
           <span class="tn b3" style="font-size:12px">${store.movsMes.filter(m => m.tipo === 'gasto').length} movimientos</span></div>
         <div><span class="lbl">Discrecional restante</span>${fmt.money(e.discrecional_restante || 0, { clase: Number(e.discrecional_restante) < 0 ? 'ox' : '' })}
@@ -1157,52 +1363,52 @@ const views = {
           <span class="tn b3" style="font-size:12px">${esc(store.metasP[0]?.nombre ? '→ ' + store.metasP[0].nombre : 'sin meta activa')}</span></div>
       </div>
 
+      ${limiteTotal ? `<p class="b3" style="margin:0;font-size:12px">Ritmo del mes: llevas ${fmt.mxn(gastos)} y
+        a estas alturas tocaría ${fmt.mxn(esperado)} —
+        <span class="${difRitmo > 0 ? 'ox' : 'sage'}">${difRitmo > 0 ? `${fmt.mxn(difRitmo)} arriba` : `${fmt.mxn(-difRitmo)} abajo`} del ritmo</span>.</p>` : ''}
+
       <div class="mac-2col">
         <div style="display:flex;flex-direction:column;gap:14px;min-width:0">
-          <div class="enc"><span class="lbl">Presupuestos</span>
-            <a href="#/presupuestos" class="b3" style="font-size:12px">Editar límites</a></div>
-          <table>
-            <thead><tr><th>Categoría</th><th class="r">Límite</th><th class="r">Gastado</th><th></th><th class="r">Restante</th></tr></thead>
-            <tbody>${store.catsGasto().map(c => {
-              const g = gastoCat[c.id] || 0, l = limites[c.id] || 0;
-              const excedido = l && g > l;
-              return `<tr>
-                <td><span style="display:inline-flex;align-items:center;gap:6px">${esc(c.nombre)}${c.discrecional ? DISC : ''}</span></td>
-                <td class="r tn b3">${l ? fmt.mxn(l).replace(/\.00$/, '') : '—'}</td>
-                <td class="r tn">${fmt.mxn(g).replace(/\.00$/, '')}</td>
-                <td style="width:140px;padding-left:16px">${barra(l ? g / l * 100 : 0, excedido ? 'over' : '')}</td>
-                <td class="r tn ${excedido ? 'ox' : 'b2'}">${l ? fmt.mxn(l - g).replace(/\.00$/, '') : '—'}</td>
-              </tr>`;
-            }).join('')}</tbody>
-          </table>
+          <div class="enc">
+            <span class="lbl">Distribución del gasto</span>
+            <select class="inp" id="dash-mes" style="width:auto;padding:4px 0;font-size:12px">
+              ${mesesConGasto.map(m => `<option value="${m}" ${m === d.mes ? 'selected' : ''}>${esc(fmt.nombreMes(m))} ${m.slice(0, 4)}</option>`).join('')}
+            </select>
+          </div>
+          ${dona(datos, { activo: d.categoria })}
         </div>
 
-        <div style="display:flex;flex-direction:column;gap:28px;min-width:0">
-          <div style="display:flex;flex-direction:column;gap:12px">
-            <div class="enc"><span class="lbl">Metas</span>
-              <button type="button" class="btn btn-d" id="btn-nueva-meta" style="height:auto;color:var(--ink-3)">Nueva</button></div>
-            ${store.metasP.length ? store.metasP.map(m => {
-              const pct = Math.min(Number(m.abonado) / Number(m.objetivo) * 100, 100);
-              return `<div class="card meta-card">
-                <div class="top"><span class="serif">${esc(m.nombre)}</span>
-                  <span class="tn b3" style="font-size:12px">${Math.round(pct)} %</span></div>
-                ${barra(pct, 'sage')}
-                <div class="pie">${fmt.money(m.abonado)}
-                  <span class="tn b3" style="font-size:12px">de ${fmt.mxn(m.objetivo)}</span></div>
-              </div>`;
-            }).join('') : '<p class="b3" style="margin:0;font-size:13px">Sin metas todavía.</p>'}
+        <div style="display:flex;flex-direction:column;gap:14px;min-width:0">
+          <div class="enc">
+            <span class="lbl">Tendencia${d.categoria ? ` · ${esc(store.cat(d.categoria)?.nombre ?? '')}` : ''}</span>
+            ${d.categoria ? '<button type="button" class="btn btn-d" id="dash-todas" style="height:auto">Ver todas</button>' : ''}
           </div>
-
-          <div style="display:flex;flex-direction:column">
-            <span class="lbl" style="padding-bottom:8px">Cuentas</span>
-            ${store.saldos.map(s => `
-              <div class="saldo-fila" data-ajustar="${s.id}">
-                <span>${esc(s.nombre)}</span>
-                ${fmt.money(s.saldo, { signo: Number(s.saldo) < 0, clase: Number(s.saldo) < 0 ? 'ox' : '' })}
-              </div>`).join('')}
-            <p class="b3" style="margin:8px 0 0;font-size:12px">Clic en una cuenta para ajustar su saldo real.</p>
+          <div class="toggles">
+            <button type="button" class="chip sm ${d.periodo === 'semana' ? 'on' : ''}" data-periodo-tipo="semana">Semanas</button>
+            <button type="button" class="chip sm ${d.periodo === 'mes' ? 'on' : ''}" data-periodo-tipo="mes">Meses</button>
+            ${d.categoria ? '' : `
+              <span style="flex:1"></span>
+              <button type="button" class="chip sm ${d.serie === 'gastos' ? 'on' : ''}" data-serie="gastos">Gasto</button>
+              <button type="button" class="chip sm ${d.serie === 'ingresos' ? 'on' : ''}" data-serie="ingresos">Ingreso</button>
+              <button type="button" class="chip sm ${d.serie === 'neto' ? 'on' : ''}" data-serie="neto">Neto</button>`}
           </div>
+          ${tendencia(store.serieTendencia())}
         </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div class="enc"><span class="lbl">Metas</span>
+          <button type="button" class="btn btn-d" id="btn-nueva-meta" style="height:auto;color:var(--ink-3)">Nueva</button></div>
+        ${store.metasP.length ? store.metasP.map(m => {
+          const pct = Math.min(Number(m.abonado) / Number(m.objetivo) * 100, 100);
+          return `<div class="card meta-card">
+            <div class="top"><span class="serif">${esc(m.nombre)}</span>
+              <span class="tn b3" style="font-size:12px">${Math.round(pct)} %</span></div>
+            ${barra(pct, 'sage')}
+            <div class="pie">${fmt.money(m.abonado)}
+              <span class="tn b3" style="font-size:12px">de ${fmt.mxn(m.objetivo)}</span></div>
+          </div>`;
+        }).join('') : '<p class="b3" style="margin:0;font-size:13px">Sin metas todavía.</p>'}
       </div>`;
   },
 
@@ -1397,14 +1603,16 @@ const router = {
     mes:           { pantalla: 'pantalla-mes',           async entrar() { await store.cargarMes(); views.mes(); } },
     mas:           { pantalla: 'pantalla-mas',           async entrar() { views.mas(); } },
     candado:       { pantalla: 'pantalla-candado',       async entrar() { await store.cargarCandado(); views.candado(); } },
-    resumen:       { pantalla: 'pantalla-resumen',       async entrar() { await store.cargarMes(); views.resumen(); } },
+    dash:          { pantalla: 'pantalla-resumen',       async entrar() { await store.cargarDash(); views.dash(); } },
     movimientos:   { pantalla: 'pantalla-movimientos',   async entrar() { await store.cargarMovs(); views.movimientos(); } },
     presupuestos:  { pantalla: 'pantalla-presupuestos',  async entrar() { await store.cargarPresupuestos(); views.presupuestos(); } },
   },
   actual: null,
 
   async ir() {
-    const nombre = location.hash.replace('#/', '') in this.rutas ? location.hash.replace('#/', '') : (esMac() ? 'resumen' : 'hoy');
+    let pedida = location.hash.replace('#/', '');
+    if (pedida === 'resumen') pedida = 'dash';   // the old bookmark still works
+    const nombre = pedida in this.rutas ? pedida : (esMac() ? 'dash' : 'hoy');
     this.actual = nombre;
     for (const [n, r] of Object.entries(this.rutas)) {
       document.getElementById(r.pantalla).hidden = n !== nombre;
@@ -1421,7 +1629,7 @@ async function iniciarApp() {
   $('#app').hidden = false;
   await store.cargarCatalogos();
   await store.cargarInbox();
-  if (!location.hash) location.hash = esMac() ? '#/resumen' : '#/hoy';
+  if (!location.hash) location.hash = esMac() ? '#/dash' : '#/hoy';
   await router.ir();
 }
 
@@ -1673,6 +1881,63 @@ function nuevaMeta() {
     if (aj) return ajustarCuenta(aj.dataset.ajustar);
     if (e.target.closest('#btn-nueva-meta')) return nuevaMeta();
   });
+});
+
+/* ============ dash: donut focus, trend toggles, month picker ============ */
+/* Hovering only repaints the donut centre — a full re-render on every
+   pointer move would be wasteful and would fight the CSS transition. */
+function enfocarDona(root, id) {
+  const wrap = root.querySelector('.dona-wrap');
+  if (!wrap) return;
+  const foco = id ?? store.dash.categoria;
+  const datos = store.distribucion(store.dash.mes);
+  const total = datos.reduce((a, x) => a + x.valor, 0);
+  const d = datos.find(x => x.id === foco);
+  wrap.classList.toggle('enfoque', !!d);
+  wrap.querySelectorAll('.seg').forEach(s => s.classList.toggle('act', s.dataset.seg === foco));
+  root.querySelectorAll('.leyenda button').forEach(b => b.classList.toggle('act', b.dataset.seg === foco));
+  wrap.querySelector('.dona-centro').innerHTML = d
+    ? `${fmt.money(d.valor)}<span class="que">${esc(d.nombre)} · ${Math.round(d.valor / total * 100)} %</span>`
+    : `${fmt.money(total)}<span class="que">gastado</span>`;
+}
+
+['#pantalla-resumen', '#pantalla-mes'].forEach(sel => {
+  const root = $(sel);
+  root.addEventListener('pointerover', e => {
+    const seg = e.target.closest('[data-seg]');
+    if (seg) enfocarDona(root, seg.dataset.seg);
+  });
+  root.addEventListener('pointerleave', () => enfocarDona(root, null), true);
+});
+
+$('#pantalla-resumen').addEventListener('click', async e => {
+  const seg = e.target.closest('[data-seg]');
+  if (seg) {
+    const id = seg.dataset.seg;
+    if (id === 'otros') return;                       // not a single category
+    store.dash.categoria = store.dash.categoria === id ? null : id;
+    if (store.dash.categoria) store.dash.periodo = 'mes';  // weekly has no per-category series
+    views.dash();
+    return;
+  }
+  if (e.target.closest('#dash-todas')) { store.dash.categoria = null; views.dash(); return; }
+
+  const per = e.target.closest('[data-periodo-tipo]');
+  if (per) {
+    store.dash.periodo = per.dataset.periodoTipo;
+    if (store.dash.periodo === 'semana') store.dash.categoria = null;
+    views.dash();
+    return;
+  }
+  const ser = e.target.closest('[data-serie]');
+  if (ser) { store.dash.serie = ser.dataset.serie; views.dash(); }
+});
+
+$('#pantalla-resumen').addEventListener('change', e => {
+  if (e.target.id !== 'dash-mes') return;
+  store.dash.mes = e.target.value;
+  store.dash.categoria = null;
+  views.dash();
 });
 
 /* ============ candado ============ */
