@@ -1,9 +1,10 @@
-# Serge Finance — Spec v0.4
+# Serge Finance — Spec v0.5
 
 *Personal finance tracker. One web app on iPhone and Mac, one shared store, Shortcuts for zero-friction capture.*
 
-Status: v0.4 · 2026-09-18 · adds §3.2 visual design system and the phone/Mac screen structure it
-brings; steps 1–5 of §8 are built.
+Status: v0.5 · 2026-10-05 · adds the Dash (net worth, spending donut, trends), account transfers,
+and the inbox rule that a movement is pending until it has both a category and an account.
+Steps 1–5 of §8 are built.
 
 ## 1. Goal
 
@@ -70,6 +71,10 @@ archive (6.8 MB; too big for the repo) and is the visual source of truth. Its «
 - **Components**: 44 px chips that fill with bone in 160 ms, 2 px progress bars (oxblood past
   100 %, sage for goals), underlined fields (never boxes), bottom sheets, undo toast.
 - Radii 4 px (buttons, chips) and 6 px (cards, sheets). Motion: 160 ms, opacity and position only.
+- **Data palette** (added 2026-10-05 for the Dash charts): muted earth tones that read on both
+  themes — `#7E9A5E` olive, `#B5724F` clay, `#C9A86A` sand, `#6F8F6A` sage, `#A4553E` rust,
+  `#5C7D7A` mist, `#7D5A6E` plum, `#9A8C52` brass. A category's colour comes from its fixed `orden`,
+  so it never changes between months. Charts are hand-drawn SVG; no charting library.
 
 ## 4. How capture works on the iPhone
 
@@ -92,7 +97,10 @@ iOS does not let Shortcuts read push notifications from other apps (Santander's 
 - **Mes**: budget bars, goals and account balances.
 - **Más**: Candado, Movimientos, Presupuestos, CSV export, sign out.
 
-**Mac layout (adds)** — sidebar: Resumen · Movimientos · Presupuestos · Inbox · Candado
+**Mac layout (adds)** — sidebar: Dash · Movimientos · Presupuestos · Inbox · Candado
+- **Dash**: net worth across all accounts (the credit card nets out as debt, plus an "unassigned"
+  row for movements with no account), the month's totals, a donut of spending by category with
+  hover/tap detail that filters the trend, trend bars by ISO week or by month, and the month's pace.
 - **Movimientos**: full ledger, filters, edit, bulk categorize, CSV export.
 - **Cuentas**: cash, debit, credit card(s), running balances, balance adjustments for reconciling against the bank.
 - **Presupuestos**: monthly limit per category, spent vs remaining, carry-over off by default. The first time the app runs in a new month it copies last month's limits forward automatically and notes it in Resumen (no silent empty months).
@@ -117,7 +125,7 @@ All tables have `id uuid`, `user_id uuid` (RLS), `creado timestamptz`. Amounts a
 
 | Table | Key columns | Notes |
 |---|---|---|
-| `movimientos` | `fecha date, monto, cuenta_id, categoria_id (null = inbox), nota, comercio, origen (apple_pay/sms/manual/app/recurrente), tipo (gasto/ingreso/ahorro/ajuste), meta_id` | The ledger. Inbox = rows with `categoria_id is null`. |
+| `movimientos` | `fecha date, monto, cuenta_id, categoria_id, nota, comercio, origen (apple_pay/sms/manual/app/recurrente), tipo (gasto/ingreso/ahorro/ajuste/traspaso), meta_id, grupo_id` | The ledger. **Inbox = rows missing a category _or_ an account**: a movement with no account reaches no balance, so it stays pending. A `traspaso` is a pair of rows sharing `grupo_id` (one negative, one positive) that moves money between accounts — paying the credit card — without counting as income or expense. |
 | `cuentas` | `nombre, tipo (efectivo/debito/credito), saldo_inicial, activa` | Balance = saldo_inicial + Σ movimientos. |
 | `categorias` | `nombre, icono, discrecional bool, orden` | Aim for 10–12. `icono` is the slug of a minimalist inline-SVG icon drawn by the app (no emoji). |
 | `presupuestos` | `mes (YYYY-MM), categoria_id, limite` | One row per category per month. |
@@ -126,7 +134,17 @@ All tables have `id uuid`, `user_id uuid` (RLS), `creado timestamptz`. Amounts a
 | `semana_metas` | `nombre, veces_objetivo, activa` | The checklist definition. |
 | `semana_registro` | `semana (ISO week), semana_meta_id, veces` | What you actually did. |
 
-A SQL view `estado` returns `{candado, semana, discrecional_restante, actualizado}` for the "¿Puedo gastar?" shortcut and the phone's Hoy screen.
+Views (all `security_invoker`, so RLS applies to the caller):
+
+| View | Returns | Feeds |
+|---|---|---|
+| `estado` | lock state, current/previous ISO week, threshold, discretionary limit/spent/remaining | Hoy, Candado, "¿Puedo gastar?" |
+| `saldos` | per account: `saldo_inicial + Σ movimientos` | Balance (sum = net worth) |
+| `metas_progreso` | per goal: target and amount contributed | Metas |
+| `gasto_mensual_categoria` | spending per category per month | donut, budget history |
+| `flujo_mensual` / `flujo_semanal` | income, spending and saving per month / per ISO week | trend bars |
+
+Aggregates live in SQL rather than in the browser so the app never pages through the ledger: PostgREST caps a response at 1000 rows.
 
 ## 7. Folder layout (iCloud, code and exports only)
 

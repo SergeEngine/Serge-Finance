@@ -3,8 +3,10 @@
 Dos shortcuts se construyen a mano en la app **Atajos** del iPhone. Los dos
 hacen lo mismo al final: dos llamadas HTTP a Supabase (1: obtener token,
 2: guardar con la función `agregar_movimiento`), y los dos muestran el menú de
-categorías ahí mismo — elige "Después" para mandarlo al Inbox. La automatización
-de Apple Pay además registra con qué tarjeta pagaste (cuenta).
+categorías ahí mismo — elige "Después" para mandarlo al Inbox. Los dos registran
+también la cuenta: «Gasto» la pregunta y Apple Pay la deduce de la tarjeta de
+Wallet. Sin cuenta, el movimiento no afecta ningún saldo y queda pendiente en el
+Inbox del app.
 
 Datos que vas a usar (cópialos tal cual):
 
@@ -38,7 +40,11 @@ En Shortcuts → **+** → nombre «Gasto» → agrega estas acciones en orden
      `Suscripciones` · `Regalos` · `Viajes` · `Ahorro` · `Después`
 5. **Choose from List** (Elegir de la lista)
    - List: la **List** del paso 4 · Prompt: `¿Categoría?`
-6. **Get Contents of URL** (Obtener contenido de URL) — *el token*
+6. **List** — las cuentas, con el nombre exacto que tienen en el app:
+   - `Efectivo` · `Santander débito` · `Santander TDC`
+7. **Choose from List**
+   - List: la **List** del paso 6 · Prompt: `¿Con qué pagaste?`
+8. **Get Contents of URL** (Obtener contenido de URL) — *el token*
    - URL: **URL_TOKEN**
    - Toca la flecha para expandir → Method: **POST**
    - Headers:
@@ -47,29 +53,35 @@ En Shortcuts → **+** → nombre «Gasto» → agrega estas acciones en orden
    - Request Body: **JSON**
      - `email` (Text) = tu correo
      - `password` (Text) = tu contraseña
-7. **Get Dictionary Value** (Obtener valor de diccionario)
+9. **Get Dictionary Value** (Obtener valor de diccionario)
    - Get **Value** for `access_token` in `Contents of URL`
-8. **Get Contents of URL** — *guardar el movimiento*
-   - URL: **URL_RPC**
-   - Method: **POST**
-   - Headers:
-     - `apikey` = **APIKEY**
-     - `Authorization` = `Bearer ` + el **Dictionary Value** del paso 7
-       (escribe `Bearer`, un espacio, y luego inserta la variable — debe verse
-       como cápsula de color, no texto plano)
-     - `Content-Type` = `application/json`
-   - Request Body: **JSON**
-     - `p_monto` (Number) = **Calculation Result** (paso 2)
-     - `p_categoria` (Text) = **Chosen Item** (paso 5)
-     - `p_nota` (Text) = **Provided Input** (paso 3 — al insertar la variable,
-       verifica que sea la del segundo Ask for Input, la de la nota)
-9. **Show Notification** (Mostrar notificación)
-   - Texto: `Guardado`
+10. **Get Contents of URL** — *guardar el movimiento*
+    - URL: **URL_RPC**
+    - Method: **POST**
+    - Headers:
+      - `apikey` = **APIKEY**
+      - `Authorization` = `Bearer ` + el **Dictionary Value** del paso 9
+        (escribe `Bearer`, un espacio, y luego inserta la variable — debe verse
+        como cápsula de color, no texto plano)
+      - `Content-Type` = `application/json`
+    - Request Body: **JSON**
+      - `p_monto` (Number) = **Calculation Result** (paso 2)
+      - `p_categoria` (Text) = **Chosen Item** del paso 5 (la categoría)
+      - `p_cuenta` (Text) = **Chosen Item** del paso 7 (la cuenta)
+      - `p_nota` (Text) = **Provided Input** (paso 3 — al insertar la variable,
+        verifica que sea la del segundo Ask for Input, la de la nota)
+11. **Show Notification** (Mostrar notificación)
+    - Texto: `Guardado`
 
 (`origen` y `tipo` ya no se envían: la función usa `manual`/`gasto` por defecto.)
 
-Pruébalo: ejecútalo, pon 50, elige `Café/antojos`, y revisa que aparezca ya
-categorizado en Movimientos. Con `Después` debe caer al Inbox.
+**Los nombres de las cuentas deben coincidir exactamente** con los del app,
+acentos incluidos: si no, la función guarda el movimiento sin cuenta y no
+aparece en ningún saldo (lo verás marcado en el Inbox del app).
+
+Pruébalo: ejecútalo, pon 50, elige `Café/antojos` y `Efectivo`, y revisa que
+aparezca ya categorizado en Movimientos y que el saldo de Efectivo baje $50. Con
+`Después` debe caer al Inbox.
 
 ---
 
