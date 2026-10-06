@@ -903,7 +903,7 @@ const barra = (pct, clase = '') =>
 /* Donut, hand-drawn in SVG. The radius makes the circumference exactly 100,
    so every stroke-dasharray value is already a percentage.
    datos: [{ id, nombre, valor, color }] sorted desc. */
-function dona(datos, { activo = null } = {}) {
+function dona(datos, { activo = null, mes = null } = {}) {
   const total = datos.reduce((a, d) => a + d.valor, 0);
   if (!total) return '<p class="b3" style="margin:0;font-size:13px">Sin gastos registrados en este mes.</p>';
   let acumulado = 0;
@@ -923,7 +923,7 @@ function dona(datos, { activo = null } = {}) {
     : `${fmt.money(total)}<span class="que">gastado</span>`;
 
   return `
-    <div class="dona-fila">
+    <div class="dona-fila" data-mes="${esc(mes ?? fmt.mes())}">
       <div class="dona-wrap${activo ? ' enfoque' : ''}">
         <svg viewBox="0 0 42 42" role="img" aria-label="Distribución del gasto">
           <circle cx="21" cy="21" r="15.9155" fill="none" stroke="var(--hair)" stroke-width="4.2"></circle>
@@ -1375,7 +1375,7 @@ const views = {
               ${mesesConGasto.map(m => `<option value="${m}" ${m === d.mes ? 'selected' : ''}>${esc(fmt.nombreMes(m))} ${m.slice(0, 4)}</option>`).join('')}
             </select>
           </div>
-          ${dona(datos, { activo: d.categoria })}
+          ${dona(datos, { activo: d.categoria, mes: d.mes })}
         </div>
 
         <div style="display:flex;flex-direction:column;gap:14px;min-width:0">
@@ -1887,10 +1887,11 @@ function nuevaMeta() {
 /* Hovering only repaints the donut centre — a full re-render on every
    pointer move would be wasteful and would fight the CSS transition. */
 function enfocarDona(root, id) {
-  const wrap = root.querySelector('.dona-wrap');
+  const fila = root.querySelector('.dona-fila');
+  const wrap = fila?.querySelector('.dona-wrap');
   if (!wrap) return;
   const foco = id ?? store.dash.categoria;
-  const datos = store.distribucion(store.dash.mes);
+  const datos = store.distribucion(fila.dataset.mes);
   const total = datos.reduce((a, x) => a + x.valor, 0);
   const d = datos.find(x => x.id === foco);
   wrap.classList.toggle('enfoque', !!d);
@@ -1907,7 +1908,11 @@ function enfocarDona(root, id) {
     const seg = e.target.closest('[data-seg]');
     if (seg) enfocarDona(root, seg.dataset.seg);
   });
-  root.addEventListener('pointerleave', () => enfocarDona(root, null), true);
+  // capture phase: pointerleave does not bubble. Only reset when the pointer
+  // leaves the whole donut block, not when it crosses between slices.
+  root.addEventListener('pointerleave', e => {
+    if (e.target.classList?.contains('dona-fila')) enfocarDona(root, null);
+  }, true);
 });
 
 $('#pantalla-resumen').addEventListener('click', async e => {
