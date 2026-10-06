@@ -637,11 +637,15 @@ const api = {
 
   /* ledger */
   listInbox() {
-    return this._rest('GET', 'movimientos?select=*&categoria_id=is.null&tipo=in.(gasto,ingreso)&order=creado.desc');
+    // "pending" = missing a category OR an account; a movement with no account
+    // is invisible to the balances, so it has to surface somewhere
+    return this._rest('GET',
+      'movimientos?select=*,cuentas(nombre)&or=(categoria_id.is.null,cuenta_id.is.null)' +
+      '&tipo=in.(gasto,ingreso)&order=creado.desc');
   },
   listMovimientos(filtros = {}, limit = 200) {
     let q = `movimientos?select=*,categorias(nombre,icono,discrecional),cuentas(nombre)` +
-            `&or=(categoria_id.not.is.null,tipo.in.(ahorro,ajuste))&order=fecha.desc,creado.desc&limit=${limit}`;
+            `&or=(categoria_id.not.is.null,tipo.in.(ahorro,ajuste,traspaso))&order=fecha.desc,creado.desc&limit=${limit}`;
     if (filtros.mes) {
       const [y, m] = filtros.mes.split('-').map(Number);
       q += `&fecha=gte.${filtros.mes}-01&fecha=lt.${new Date(Date.UTC(y, m, 1)).toISOString().slice(0, 10)}`;
@@ -661,6 +665,16 @@ const api = {
       `movimientos?select=*,categorias(nombre,icono,discrecional),cuentas(nombre)&order=fecha.desc,creado.desc&limit=${limit}`);
   },
   addMovimiento(mov)            { return this._rest('POST', 'movimientos', mov); },
+  /* a transfer is two legs sharing grupo_id: the net worth does not move */
+  addTraspaso(origen_id, destino_id, monto, nota) {
+    const grupo_id = crypto.randomUUID();
+    const base = { fecha: fmt.hoy(), origen: 'app', tipo: 'traspaso', grupo_id, nota };
+    return this._rest('POST', 'movimientos', [
+      { ...base, cuenta_id: origen_id,  monto: -monto },
+      { ...base, cuenta_id: destino_id, monto:  monto },
+    ]);
+  },
+  listSinCuenta() { return this._rest('GET', 'movimientos?select=id,monto&cuenta_id=is.null'); },
   actualizarMovimiento(id, campos) { return this._rest('PATCH', `movimientos?id=eq.${id}`, campos); },
   borrarMovimiento(id)          { return this._rest('DELETE', `movimientos?id=eq.${id}`); },
 
@@ -669,6 +683,8 @@ const api = {
   listSaldos()        { return this._rest('GET', 'saldos?select=*'); },
   listMetasProgreso() { return this._rest('GET', 'metas_progreso?select=*'); },
   listGastoMensual()  { return this._rest('GET', 'gasto_mensual_categoria?select=*'); },
+  listFlujoMensual()  { return this._rest('GET', 'flujo_mensual?select=*&order=mes'); },
+  listFlujoSemanal()  { return this._rest('GET', 'flujo_semanal?select=*&order=semana'); },
 
   /* budgets */
   listPresupuestos(mes) { return this._rest('GET', `presupuestos?select=*&mes=eq.${mes}`); },
@@ -801,12 +817,14 @@ const views = {
     const partes = [cat?.nombre, m.cuentas?.nombre, fmt.fecha(m.fecha)].filter(Boolean);
     const ingreso = Number(m.monto) > 0;
     const cerrado = store.estado?.candado === 'cerrado' && cat?.discrecional && m.tipo === 'gasto';
+    const sinCuenta = !m.cuenta_id && m.tipo !== 'ajuste';
     return `
       <div class="fila" data-id="${m.id}">
         ${conIcono ? `<span class="ico-cat">${icon(cat ? cat.icono : 'help')}</span>` : ''}
         <div class="quien">
           <div class="titulo">${esc(titulo)}</div>
           <div class="sub">${esc(partes.join(' · '))}</div>
+          ${sinCuenta ? '<div class="aviso">Sin cuenta · no cuenta en el balance</div>' : ''}
           ${cerrado ? '<div class="aviso">Discrecional · candado cerrado</div>' : ''}
         </div>
         ${fmt.money(m.monto, { signo: true, clase: ingreso ? 'in' : '' })}
@@ -871,14 +889,18 @@ const views = {
       </div>`;
   },
 
-  /* ---- Inbox: categorize inside the card ---- */
+  /* ---- Inbox: complete the movement inside the card ---- */
+  _falta(m) {
+    return [!m.categoria_id && 'categoría', !m.cuenta_id && 'cuenta'].filter(Boolean);
+  },
+
   inbox() {
     const el = $('#pantalla-inbox');
     if (store.inbox.length === 0) {
       el.innerHTML = `
         <div class="enc"><h1 class="serif">Inbox</h1></div>
         <div class="vacio b3"><span class="serif" style="color:var(--ink-1)">Nada pendiente.</span>
-          Todo lo de esta semana está en su lugar.</div>`;
+          Todo está categorizado y con su cuenta.</div>`;
       return;
     }
     const abierto = store.inboxAbierto && store.inbox.some(m => m.id === store.inboxAbierto)
@@ -890,11 +912,13 @@ const views = {
   },
 
   _inboxCerrada(m) {
+    const falta = this._falta(m);
     return `
       <div class="card" data-mov="${m.id}" style="padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:12px">
         <div style="display:flex;flex-direction:column;gap:4px;min-width:0">
           <div style="font-size:15px">${esc(m.comercio || m.nota || 'Sin descripción')}</div>
           <div class="sub b3" style="font-size:12px">${esc([fmt.fecha(m.fecha), m.cuentas?.nombre].filter(Boolean).join(' · '))}</div>
+          <div class="aviso" style="font-size:12px">Falta ${esc(falta.join(' y '))}</div>
         </div>
         ${fmt.money(m.monto, { signo: true, clase: Number(m.monto) > 0 ? 'in' : '' })}
       </div>`;
@@ -904,19 +928,21 @@ const views = {
     const cats = Number(m.monto) > 0
       ? store.categorias.filter(c => c.nombre === 'Ingreso')
       : store.catsGasto();
+    const falta = this._falta(m);
     return `
       <div class="card stamp" data-mov="${m.id}" style="padding:18px 16px;display:flex;flex-direction:column;gap:16px;background:var(--bg-2)">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
           <div style="display:flex;flex-direction:column;gap:4px;min-width:0">
             <div style="font-size:16px">${esc(m.comercio || m.nota || 'Sin descripción')}</div>
             <div class="b3" style="font-size:12px">${esc([fmt.fecha(m.fecha), m.cuentas?.nombre].filter(Boolean).join(' · '))}</div>
+            ${falta.length ? `<div class="aviso" style="font-size:12px">Falta ${esc(falta.join(' y '))}</div>` : ''}
           </div>
           <span style="font-size:24px">${fmt.money(m.monto, { signo: true, clase: Number(m.monto) > 0 ? 'in' : '' })}</span>
         </div>
         <div class="hr"></div>
         <span class="lbl">Categoría</span>
         <div class="chip-grid">${cats.map(c => `
-          <button type="button" class="chip" data-cat="${c.id}">${esc(c.nombre)}${c.discrecional ? DISC : ''}</button>`).join('')}</div>
+          <button type="button" class="chip ${c.id === m.categoria_id ? 'on' : ''}" data-cat="${c.id}">${esc(c.nombre)}${c.discrecional ? DISC : ''}</button>`).join('')}</div>
         <span class="lbl">Cuenta</span>
         <div class="chip-row">${store.cuentas.map(c => `
           <button type="button" class="chip sm ${c.id === m.cuenta_id ? 'on' : ''}" data-cuenta="${c.id}">${esc(c.nombre)}</button>`).join('')}</div>
@@ -1515,9 +1541,10 @@ $('#pantalla-inbox').addEventListener('click', async e => {
 
   const cuenta = e.target.closest('[data-cuenta]');
   if (cuenta) {
+    store.inboxAbierto = mov.id;
     try {
       await api.actualizarMovimiento(mov.id, { cuenta_id: cuenta.dataset.cuenta });
-      mov.cuenta_id = cuenta.dataset.cuenta;
+      await store.cargarInbox();
       views.inbox();
     } catch (err) { views.toast(err.message); }
     return;
@@ -1526,17 +1553,23 @@ $('#pantalla-inbox').addEventListener('click', async e => {
   const chip = e.target.closest('[data-cat]');
   if (chip) {
     const cat = store.cat(chip.dataset.cat);
+    const previa = mov.categoria_id;
+    store.inboxAbierto = mov.id;   // keep the card open if it is still incomplete
     try {
       await api.actualizarMovimiento(mov.id, { categoria_id: cat.id });
-      views.toast(`${mov.comercio || mov.nota || 'Movimiento'} → ${cat.nombre}`, {
-        texto: 'Deshacer',
-        fn: async () => {
-          await api.actualizarMovimiento(mov.id, { categoria_id: null });
-          $('#toast').hidden = true;
-          await store.cargarInbox();
-          views.inbox();
-        },
-      });
+      views.toast(
+        mov.cuenta_id
+          ? `${mov.comercio || mov.nota || 'Movimiento'} → ${cat.nombre}`
+          : `${cat.nombre} · ahora elige la cuenta`,
+        {
+          texto: 'Deshacer',
+          fn: async () => {
+            await api.actualizarMovimiento(mov.id, { categoria_id: previa });
+            $('#toast').hidden = true;
+            await store.cargarInbox();
+            views.inbox();
+          },
+        });
       await store.cargarInbox();
       views.inbox();
     } catch (err) { views.toast(err.message); }
